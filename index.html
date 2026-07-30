@@ -12,8 +12,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Office">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="preconnect" href="https://googleapis.com">
-<link href="https://googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --paper: #EDE6D3;
@@ -33,8 +33,609 @@
   html,body{margin:0;padding:0;height:100%;}
   body{
     background: var(--paper);
-    background-image: none;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 35px, rgba(184,173,140,0.18) 36px);
+    font-family:'IBM Plex Sans','Noto Sans Gujarati',sans-serif;
+    color: var(--ink);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
   }
+
+  /* ---------- Header ---------- */
+  header{
+    position:sticky; top:0; z-index:30;
+    background: var(--paper);
+    border-bottom: 3px double var(--rule);
+    padding: calc(14px + env(safe-area-inset-top)) 16px 10px;
+  }
+  .brand-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin-bottom:12px;
+  }
+  .brand{
+    display:flex; align-items:baseline; gap:8px;
+  }
+  .brand h1{
+    font-family:'Special Elite',monospace;
+    font-size: 22px;
+    margin:0;
+    letter-spacing: 0.5px;
+    color: var(--ink);
+  }
+  .brand small{
+    font-family:'Noto Sans Gujarati',sans-serif;
+    font-size:11px;
+    color: var(--ink-soft);
+  }
+  .count-stamp{
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:600;
+    font-size:12px;
+    border: 2px solid var(--seal);
+    color: var(--seal);
+    border-radius: 999px;
+    padding: 5px 12px;
+    transform: rotate(-4deg);
+    white-space:nowrap;
+    background: rgba(140,47,27,0.05);
+  }
+  .header-actions{
+    display:flex; align-items:center; gap:6px; margin-left:auto;
+  }
+  .stack-btns{
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .icon-btn{
+    width:34px; height:34px;
+    border-radius:8px;
+    border: 1.5px solid var(--rule);
+    background: #FBF8EF;
+    color: var(--ink);
+    font-size:16px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .icon-btn.small{
+    width:34px; height:17px;
+    border-radius:5px;
+    font-size:10px;
+  }
+  .icon-btn:active{ background: rgba(140,47,27,0.1); }
+  .icon-btn.active-select{ background: var(--seal); color: var(--paper); border-color: var(--seal); }
+
+  .row-check{
+    width:20px; height:20px; flex-shrink:0; accent-color: var(--seal);
+  }
+  .check-row{
+    display:flex; align-items:center; gap:10px; cursor:pointer;
+    padding:8px 2px; border-bottom:1px dashed var(--rule);
+  }
+  .check-row input.row-check{ width:20px !important; flex:0 0 auto; }
+  .check-row span{ flex:1; font-size:15px; }
+
+  .select-bar{
+    position:fixed; left:0; right:0; bottom:0; z-index:41;
+    background:#FBF8EF; border-top:2px solid var(--rule);
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom)); display:flex; align-items:center; gap:10px;
+    box-shadow: 0 -2px 8px rgba(36,33,27,0.15);
+  }
+  .select-bar span{
+    flex:1; font-family:'IBM Plex Mono',monospace; font-size:13px; color: var(--ink-soft);
+  }
+  .select-bar .btn{ flex:0 0 auto; padding:9px 16px; font-size:13px; }
+
+  .search-wrap{
+    position:relative;
+  }
+  .search-wrap input{
+    width:100%;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:16px;
+    padding: 13px 42px 13px 14px;
+    border-radius: 10px;
+    border: 2px solid var(--ink);
+    background: #FBF8EF;
+    color: var(--ink);
+    outline:none;
+  }
+  .search-wrap input:focus{
+    border-color: var(--seal);
+    box-shadow: 0 0 0 3px rgba(140,47,27,0.15);
+  }
+  .search-wrap .clear-btn{
+    position:absolute; right:8px; top:50%; transform:translateY(-50%);
+    background:none; border:none; color:var(--ink-soft);
+    font-size:20px; line-height:1; padding:6px; cursor:pointer;
+    display:none;
+  }
+  .search-wrap .clear-btn.show{ display:block; }
+
+  .chips{
+    display:flex; gap:8px; overflow-x:auto; margin-top:10px;
+    padding-bottom:4px;
+    scrollbar-width: none;
+  }
+  .chips::-webkit-scrollbar{ display:none; }
+  .chip{
+    flex: 0 0 auto;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px; font-weight:600;
+    padding:6px 12px;
+    border-radius:999px;
+    border:1.5px solid var(--rule);
+    color: var(--ink-soft);
+    background: var(--paper-row-alt);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .chip.active{
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+
+  /* ---------- List ---------- */
+  main{
+    flex:1;
+    padding: 8px 12px 100px;
+    max-width: 720px;
+    width:100%;
+    margin: 0 auto;
+  }
+  .empty-state{
+    text-align:center;
+    padding: 60px 20px;
+    color: var(--ink-soft);
+  }
+  .empty-state .stamp-icon{
+    font-family:'Special Elite',monospace;
+    font-size:15px;
+    border:2px dashed var(--rule);
+    display:inline-block;
+    padding:16px 24px;
+    border-radius:8px;
+    transform: rotate(-2deg);
+  }
+
+  .row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding: 12px 8px;
+    border-bottom: 1px dashed var(--rule);
+    cursor:pointer;
+    transition: background .12s;
+  }
+  .row:active{ background: rgba(140,47,27,0.08); }
+  .row .sr{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color: var(--ink-soft);
+    width:28px;
+    flex-shrink:0;
+    text-align:right;
+  }
+  .row .main-info{
+    flex:1;
+    min-width:0;
+  }
+  .row .item-name{
+    font-size:15px;
+    font-weight:600;
+    color: var(--ink);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .row .meta-line{
+    display:flex; align-items:center; gap:6px;
+    margin-top:3px;
+  }
+  .co-tag{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    font-weight:600;
+    color: var(--green);
+    background: rgba(62,107,87,0.12);
+    padding:1px 7px;
+    border-radius:4px;
+    text-transform:uppercase;
+  }
+  .label-text{
+    font-size:11px; color: var(--ink-soft);
+  }
+  .row .nums{
+    text-align:right;
+    flex-shrink:0;
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .row .price{
+    font-size:14px; font-weight:600; color: var(--ink);
+  }
+  .row .qty{
+    font-size:11px; color: var(--ink-soft);
+  }
+
+  .result-hint{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color: var(--ink-soft);
+    text-align:center;
+    padding: 14px 0 4px;
+  }
+
+  /* ---------- FAB ---------- */
+  .fab{
+    position:fixed; right:20px; bottom: calc(24px + env(safe-area-inset-bottom)); z-index:40;
+    width:60px; height:60px; border-radius:50%;
+    background: var(--seal);
+    color: var(--paper);
+    border: none;
+    font-size:28px;
+    box-shadow: 0 4px 14px rgba(140,47,27,0.45);
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition: transform .1s;
+  }
+  .fab:active{ transform: scale(0.88) rotate(-8deg); }
+
+  /* ---------- Modal ---------- */
+  .overlay{
+    position:fixed; inset:0; background: rgba(36,33,27,0.55);
+    z-index:50; display:none;
+    align-items:flex-end;
+    padding-bottom: var(--kb-height);
+    transition: padding-bottom .15s ease-out;
+  }
+  .overlay.show{ display:flex; }
+  .sheet{
+    background: #FBF8EF;
+    width:100%;
+    max-height: calc(92vh - var(--kb-height));
+    overflow-y:auto;
+    border-radius: 18px 18px 0 0;
+    border-top: 4px solid var(--seal);
+    padding: 18px 18px 24px;
+    animation: slideUp .22s ease-out;
+  }
+  @keyframes slideUp{ from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;} }
+  .sheet h2{
+    font-family:'Special Elite',monospace;
+    font-size:19px;
+    margin: 0 0 16px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .sheet .close-x{
+    background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;
+  }
+  .field{ margin-bottom:14px; }
+  .field label{
+    display:block;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color: var(--ink-soft);
+    margin-bottom:5px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+  .field input, .field select{
+    width:100%;
+    padding: 11px 12px;
+    font-size:15px;
+    font-family:'IBM Plex Sans',sans-serif;
+    border-radius:8px;
+    border: 1.5px solid var(--rule);
+    background: #fff;
+    color: var(--ink);
+    outline:none;
+  }
+  .field input:focus, .field select:focus{
+    border-color: var(--seal);
+  }
+  .field-row{ display:flex; gap:10px; }
+  .field-row .field{ flex:1; }
+
+  .sheet-actions{
+    display:flex; gap:10px; margin-top:8px;
+  }
+  .btn{
+    flex:1;
+    padding: 13px;
+    border-radius:9px;
+    border:none;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-weight:600;
+    font-size:15px;
+    cursor:pointer;
+  }
+  .btn-save{ background: var(--seal); color: var(--paper); }
+  .btn-save:active{ background: var(--seal-dark); }
+  .btn-delete{ background: transparent; color: var(--seal); border:1.5px solid var(--seal); flex:0 0 auto; padding:13px 16px; }
+  .btn-cancel{ background: transparent; color: var(--ink-soft); border:1.5px solid var(--rule); flex:0 0 auto; padding:13px 16px; }
+
+  .toast{
+    position:fixed; left:50%; bottom:100px; transform:translateX(-50%) translateY(20px);
+    background: var(--ink); color: var(--paper);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    padding: 10px 18px;
+    border-radius:8px;
+    z-index:60;
+    opacity:0;
+    pointer-events:none;
+    transition: all .25s;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ---------- Order Sheet ---------- */
+  .order-add-row{ margin-bottom:12px; }
+  .order-pick-btn{
+    width:100%;
+    padding: 14px;
+    border-radius:10px;
+    border: 2px dashed var(--rule);
+    background: #FBF8EF;
+    color: var(--ink-soft);
+    font-size:15px;
+    font-weight:600;
+    text-align:center;
+    cursor:pointer;
+  }
+  .order-pick-btn:active{ background: rgba(140,47,27,0.08); }
+  .order-pending{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    background: var(--paper-row-alt);
+    border-radius:10px;
+    padding:10px 12px;
+    margin-bottom:12px;
+  }
+  .pending-info{ flex:1 1 100%; min-width:0; display:flex; gap:8px; }
+  .pending-name-input{
+    flex:1; min-width:0;
+    font-weight:600; font-size:14px;
+    padding:9px 8px;
+    border-radius:7px;
+    border: 1.5px solid var(--rule);
+    background:#fff;
+    outline:none;
+  }
+  .pending-price-input{
+    width:74px; flex:0 0 auto;
+    font-size:13px; color: var(--ink);
+    font-family:'IBM Plex Mono',monospace;
+    padding:9px 6px;
+    border-radius:7px;
+    border: 1.5px solid var(--rule);
+    background:#fff;
+    outline:none;
+    text-align:right;
+  }
+  .pending-name-input:focus, .pending-price-input:focus{ border-color: var(--seal); }
+  .order-qty-input{
+    width:64px; flex:0 0 auto;
+    padding: 10px 8px;
+    font-size:14px;
+    border-radius:8px;
+    border: 1.5px solid var(--rule);
+    background:#fff;
+    outline:none;
+    text-align:right;
+  }
+  .order-qty-input:focus{ border-color: var(--seal); }
+  .order-sr-row{
+    display:flex; gap:8px; margin-bottom:8px;
+  }
+  .order-sr-row select{
+    flex:1; min-width:0;
+    padding: 11px 8px;
+    font-size:14px;
+    font-family:'IBM Plex Sans',sans-serif;
+    border-radius:8px;
+    border: 1.5px solid var(--rule);
+    background:#fff;
+    color: var(--ink);
+    outline:none;
+  }
+  .order-sr-row input{
+    width:72px; flex:0 0 auto;
+    padding: 11px 8px;
+    font-size:14px;
+    border-radius:8px;
+    border: 1.5px solid var(--rule);
+    background:#fff;
+    outline:none;
+    text-align:right;
+  }
+  .order-sr-row select:focus, .order-sr-row input:focus{ border-color: var(--seal); }
+  .order-meta-row{ display:flex; gap:8px; margin-bottom:12px; }
+  .order-meta-row .field{ flex:1; margin-bottom:0; }
+  .add-row-btn{
+    flex:0 0 auto;
+    padding: 0 16px; height:38px;
+    border-radius:8px;
+    border:none;
+    background: var(--seal);
+    color: var(--paper);
+    font-size:20px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .picker-row{ cursor:pointer; }
+  .order-rows{ max-height:38vh; overflow-y:auto; margin-bottom:6px; }
+  .order-row{
+    display:flex; align-items:center; gap:8px;
+    padding:8px 4px;
+    border-bottom:1px dashed var(--rule);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+  }
+  .order-row .order-sr{ width:20px; color:var(--ink-soft); text-align:right; flex-shrink:0; }
+  .order-row .order-name{
+    flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-family:'IBM Plex Sans',sans-serif; font-size:14px;
+  }
+  .order-row .order-co{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px; font-weight:600;
+    color: var(--green);
+    background: rgba(62,107,87,0.12);
+    padding:1px 6px; border-radius:4px;
+    margin-right:6px;
+    text-transform:uppercase;
+  }
+  .order-row .order-qty{ width:42px; text-align:right; flex-shrink:0; }
+  .order-row .order-price{ width:60px; text-align:right; flex-shrink:0; }
+  .order-row .order-remove{
+    background:none; border:none; color:var(--seal);
+    font-size:19px; line-height:1; cursor:pointer; padding:2px 4px; flex-shrink:0;
+  }
+  .order-total{
+    text-align:right; font-weight:700; font-size:13px;
+    padding:10px 4px;
+    font-family:'IBM Plex Mono',monospace;
+    border-top: 2px double var(--rule);
+  }
+  .btn-whatsapp{ background:#25D366; color:#fff; }
+  .btn-whatsapp:active{ background:#1ea955; }
+
+  /* ---------- Printable sheet (off-screen, used for print + image share) ---------- */
+  /* Portrait, mobile-screen-proportioned single copy (not A4, not duplicated) */
+  .print-area{
+    position:absolute; left:-9999px; top:0;
+    width:430px;
+    background:#fff;
+    color:#000;
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+  .sheet-copy{ padding:16px 14px; box-sizing:border-box; width:430px; }
+  .sheet-label{
+    text-align:center; font-weight:700; font-size:16px;
+    text-decoration:underline; letter-spacing:1px;
+    margin-bottom:8px;
+  }
+  .sheet-meta{
+    font-size:12px; margin-bottom:10px; line-height:1.5;
+  }
+  .sheet-copy table{ width:100%; border-collapse:collapse; font-size:11.5px; table-layout:fixed; }
+  .sheet-copy th, .sheet-copy td{ border:1px solid #000; padding:4px 4px; text-align:left; overflow:hidden; }
+  .sheet-copy th{ background:#eee; }
+  .sheet-copy td.c-item, .sheet-copy th.c-item{ white-space:normal; word-break:break-word; }
+  .sheet-copy .c-sr{ width:7%; text-align:center; white-space:nowrap; }
+  .sheet-copy .c-co{ width:13%; text-align:left; white-space:nowrap; font-weight:700; font-size:10px; text-transform:uppercase; }
+  .sheet-copy .c-qty{ width:14%; text-align:right; white-space:nowrap; }
+  .sheet-copy .c-price{ width:16%; text-align:right; white-space:nowrap; }
+  .sheet-copy .c-total{ width:17%; text-align:right; white-space:nowrap; }
+  .sheet-total-row{ margin-top:8px; font-weight:700; font-size:13px; text-align:right; }
+
+  @media print{
+    body > *:not(.print-area){ display:none !important; }
+    .print-area{ position:static; left:0; width:100%; display:flex; justify-content:center; }
+    @page{ size:auto; margin:6mm; }
+    .sheet-copy{ page-break-inside:avoid; width:430px; max-width:100%; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand-row">
+    <div class="brand">
+      <h1>STOCK</h1>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="selectModeBtn" title="Items Select કરો">☑</button>
+      <button class="icon-btn" id="orderBtn" title="Estimate">🧾</button>
+      <div class="stack-btns">
+        <button class="icon-btn small" id="exportBtn" title="Backup Export (JSON)">⬇</button>
+        <button class="icon-btn small" id="importBtn" title="Import (JSON અથવા Excel)">⬆</button>
+        <button class="icon-btn small" id="excelBtn" title="Excel Export (Company-wise)">📊</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json,.json,.xlsx" style="display:none;">
+    </div>
+    <div class="count-stamp" id="countStamp">0 items</div>
+  </div>
+  <div class="search-wrap">
+    <input id="searchInput" type="text" placeholder="શોધો... (item, company, price)" autocomplete="off">
+    <button class="clear-btn" id="clearBtn">×</button>
+  </div>
+  <div class="chips" id="chipsRow"></div>
+</header>
+
+<main>
+  <div id="resultsWrap"></div>
+</main>
+
+<div class="select-bar" id="selectBar" style="display:none;">
+  <span id="selectCount">0 પસંદ કર્યા</span>
+  <button class="btn btn-whatsapp" id="selectShareBtn">Share</button>
+  <button class="btn-cancel btn" id="selectCancelBtn">રદ</button>
+</div>
+
+<button class="fab" id="addFab" title="નવી વસ્તુ ઉમેરો">+</button>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2 id="sheetTitle">નવી વસ્તુ ઉમેરો <button class="close-x" id="closeX">×</button></h2>
+    <div class="field">
+      <label>Company</label>
+      <input list="companyList" id="fCompany" placeholder="દા.ત. SUN">
+      <datalist id="companyList"></datalist>
+    </div>
+    <div class="field">
+      <label>Label (optional)</label>
+      <input id="fLabel" placeholder="">
+    </div>
+    <div class="field">
+      <label>Item Name</label>
+      <input id="fName" placeholder="વસ્તુ નું નામ">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Price</label>
+        <input id="fPrice" type="number" inputmode="decimal" placeholder="0">
+      </div>
+      <div class="field">
+        <label>Qty</label>
+        <input id="fQty" type="number" inputmode="decimal" placeholder="0">
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel btn" id="cancelBtn">રદ</button>
+      <button class="btn-delete btn" id="deleteBtn" style="display:none;">Delete</button>
+      <button class="btn-save btn" id="saveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="orderOverlay">
+  <div class="sheet">
+    <h2>એસ્ટીમેટ <button class="close-x" id="orderCloseX">×</button></h2>
+    <div class="order-meta-row">
+      <div class="field">
+        <label>Party Name</label>
+        <input id="orderParty" placeholder="પાર્ટી નું નામ">
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input id="orderDate" type="date">
+      </div>
+    </div>
+    <div class="order-rows" id="orderRowsWrap"></div>
+    <div class="order-total" id="orderTotalLine">Total Qty: 0   Total ₹: 0</div>
+    <div class="order-add-row" style="margin-top:14px;">
+      <button class="order-pick-btn" id="orderPickBtn">＋ અથવા શોધીને Item પસંદ કરો</button>
+    </div>
+    <div class="order-pending" id="orderPending" style="display:none;">
+      <div class="pending-info">
+        <span class="co-tag" id="pendingCompanyTag" style="display:none; align-self:center;"></span>
+        <input id="pendingNameInput" class="pending-name-input" placeholder="Item Name">
+        <input id="pendingPriceInput" class="pending-price-input" type="number" inputmode  }
 </style>
 <script>
   // સ્ક્રીન પર ગમે ત્યાં ટચ કરવાથી ઉપરની પટ્ટી ગાયબ થઈ જશે
