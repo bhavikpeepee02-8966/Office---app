@@ -1,8 +1,8 @@
 [{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "io.github.bhavikpeepee02_8966.twa",
-    "sha256_cert_fingerprints": ["D7:A2:AC:07:FB:51:5F:47:92:CA:2C:85:60:15:81:1F:7A:E1:5A:B8:18:CA:FC:14:4A:B1:5D:03:8A:D2:8E:57"]
-  }
-}]
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.bhavikpeepee02_8966.twa",
+        "sha256_cert_fingerprints": ["C9:B7:16:2D:5B:6E:C8:0D:57:36:0A:D6:F2:72:66:E1:4C:67:02:E4:DF:C0:E0:99:EB:60:7C:F5:8D:4C:CF:78"]
+      }
+    }]
