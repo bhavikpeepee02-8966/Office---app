@@ -12,8 +12,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Office">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://googleapis.com">
+<link href="https://googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --paper: #EDE6D3;
@@ -33,7 +33,33 @@
   html,body{margin:0;padding:0;height:100%;}
   body{
     background: var(--paper);
-    background-image:
+    background-image: none;
+  }
+</style>
+<script>
+  // સ્ક્રીન પર ગમે ત્યાં ટચ કરવાથી ઉપરની પટ્ટી ગાયબ થઈ જશે
+  document.addEventListener("click", function() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.log("Fullscreen Error: ", err);
+      });
+    }
+  });
+  
+  // એપ લોડ થતાની સાથે જ ફુલસ્ક્રીન કરવાનો પ્રયત્ન કરશે
+  window.addEventListener("load", function() {
+    setTimeout(function() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {});
+      }
+    }, 1000);
+  });
+</script>
+</head>
+<body>
+  <!-- તમારો બાકીનો અંદરનો કોડ અહીં નીચે આવશે -->
+</body>
+</html>
       repeating-linear-gradient(0deg, transparent, transparent 35px, rgba(184,173,140,0.18) 36px);
     font-family:'IBM Plex Sans','Noto Sans Gujarati',sans-serif;
     color: var(--ink);
