@@ -4,7 +4,7 @@
   "description": "Office Stock & Order Management",
   "start_url": "./index.html",
   "scope": "./",
-  "display": "fullscreen",
+  "display": "standalone",
   "orientation": "portrait",
   "background_color": "#EDE6D3",
   "theme_color": "#EDE6D3",
