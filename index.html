@@ -666,7 +666,7 @@
     <h2>Import <button class="close-x" id="importChoiceCloseX">×</button></h2>
     <div style="display:flex; flex-direction:column; gap:10px; padding:4px 0 16px;">
       <button class="btn-save btn" id="importChoiceJSON" style="width:100%;">📄 JSON Import</button>
-      <button class="btn-save btn" id="importChoiceExcel" style="width:100%;">📊 Excel Import</button>
+      <button class="btn-save btn" id="importChoiceExcelSync" style="width:100%;">🔄 Excel Sync</button>
     </div>
   </div>
 </div>
@@ -824,9 +824,13 @@ async function importExcelData(file){
         if(srRaw === '' || srRaw === undefined || srRaw === null) return;
         const sr = Number(srRaw);
         if(isNaN(sr)) return;
-        const item = ITEMS.find(i => Number(i.sr) === sr);
-        if(!item){ skipped++; return; }
         const companyVal = row['Company'];
+        const rowCompany = (companyVal !== '' && companyVal !== undefined && companyVal !== null)
+          ? String(companyVal).trim() : '';
+        const item = rowCompany
+          ? ITEMS.find(i => Number(i.sr) === sr && (i.company || 'MISC') === rowCompany)
+          : ITEMS.find(i => Number(i.sr) === sr);
+        if(!item){ skipped++; return; }
         const nameVal = row['Item Name'];
         const labelVal = row['Label'];
         const priceVal = row['Price'];
@@ -859,6 +863,71 @@ async function importExcelData(file){
     }
   }catch(e){
     showToast('Excel Import ન થયું: ' + ((e && e.message) || e));
+  }
+}
+
+async function importExcelSync(file){
+  showToast('Excel Sync થાય છે...');
+  try{
+    await loadXLSX();
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const newItemsByCompany = {};
+    const companiesTouched = new Set();
+
+    wb.SheetNames.forEach(sheetName => {
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      rows.forEach(row => {
+        const companyVal = row['Company'];
+        const nameVal = row['Item Name'];
+        const labelVal = row['Label'];
+        const priceVal = row['Price'];
+        const qtyVal = row['Qty'];
+        const companyEmpty = (companyVal === '' || companyVal === undefined || companyVal === null);
+        const nameEmpty = (nameVal === '' || nameVal === undefined || nameVal === null);
+        if(companyEmpty && nameEmpty) return; // fully blank row, skip
+        const company = companyEmpty ? 'MISC' : String(companyVal).trim();
+        if(!newItemsByCompany[company]) newItemsByCompany[company] = [];
+        newItemsByCompany[company].push({
+          sr: newItemsByCompany[company].length + 1,
+          company,
+          label: (labelVal === undefined || labelVal === null) ? '' : String(labelVal).trim(),
+          name: nameEmpty ? '' : String(nameVal).trim(),
+          price: (priceVal === '' || priceVal === undefined || isNaN(Number(priceVal))) ? '' : Number(priceVal),
+          qty: (qtyVal === '' || qtyVal === undefined || isNaN(Number(qtyVal))) ? '' : Number(qtyVal)
+        });
+        companiesTouched.add(company);
+      });
+    });
+
+    const seenCompanies = new Set();
+    const rebuilt = [];
+    ITEMS.forEach(i => {
+      const c = i.company || 'MISC';
+      if(companiesTouched.has(c)){
+        if(!seenCompanies.has(c)){
+          rebuilt.push(...newItemsByCompany[c]);
+          seenCompanies.add(c);
+        }
+      } else {
+        rebuilt.push(i);
+      }
+    });
+    companiesTouched.forEach(c => {
+      if(!seenCompanies.has(c)){
+        rebuilt.push(...newItemsByCompany[c]);
+        seenCompanies.add(c);
+      }
+    });
+
+    ITEMS = rebuilt;
+    saveItems();
+    renderChips();
+    renderResults();
+    showToast(companiesTouched.size + ' company sync થઈ');
+  }catch(e){
+    showToast('Excel Sync ન થયું: ' + ((e && e.message) || e));
   }
 }
 
@@ -1476,7 +1545,7 @@ el('importChoiceJSON').addEventListener('click', () => {
   el('importFile').setAttribute('accept', 'application/json,.json');
   el('importFile').click();
 });
-el('importChoiceExcel').addEventListener('click', () => {
+el('importChoiceExcelSync').addEventListener('click', () => {
   closeImportChoice();
   el('importFile').setAttribute('accept', '.xlsx');
   el('importFile').click();
@@ -1485,7 +1554,7 @@ el('importFile').addEventListener('change', (e) => {
   const file = e.target.files && e.target.files[0];
   if(file){
     if(/\.xlsx$/i.test(file.name)){
-      importExcelData(file);
+      importExcelSync(file);
     } else {
       importData(file);
     }
