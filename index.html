@@ -1471,9 +1471,9 @@ function openEditSheet(idx){
   el('fName').value = item.name || '';
   el('fPrice').value = item.price === '' ? '' : item.price;
   el('fQty').value = item.qty === '' ? '' : item.qty;
-  el('fQty').disabled = true;
-  el('fQty').style.background = '#eee';
-  el('fQtyLabel').textContent = 'Qty (ફક્ત Excel Sync થી બદલાય)';
+  el('fQty').disabled = false;
+  el('fQty').style.background = '';
+  el('fQtyLabel').textContent = 'Qty';
   el('deleteBtn').style.display = 'inline-block';
   updateCompanyDatalist();
   el('overlay').classList.add('show');
