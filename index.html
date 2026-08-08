@@ -241,14 +241,6 @@
     transition: background .12s;
   }
   .row:active{ background: rgba(140,47,27,0.08); }
-  .row.dragging{ background: rgba(140,47,27,0.12); opacity:0.85; box-shadow: 0 4px 10px rgba(36,33,27,0.2); position:relative; z-index:5; }
-  .drag-handle{
-    flex:0 0 auto; width:24px; align-self:stretch;
-    display:flex; align-items:center; justify-content:center;
-    color: var(--ink-soft); font-size:19px; letter-spacing:-2px;
-    cursor:grab; touch-action:none; user-select:none;
-  }
-  .drag-handle:active{ color: var(--seal); cursor:grabbing; }
   .row .sr{
     font-family:'IBM Plex Mono',monospace;
     font-size:13px;
@@ -1464,11 +1456,7 @@ function renderResults(){
     const checkboxHtml = selectMode
       ? `<input type="checkbox" class="row-check" data-idx="${realIndex}" ${selectedIdx.has(realIndex) ? 'checked' : ''}>`
       : '';
-    const handleHtml = selectMode
-      ? ''
-      : `<div class="drag-handle" data-idx="${realIndex}" title="ઉપર-નીચે ખસેડો">⠿</div>`;
     html += `<div class="row" data-idx="${realIndex}">
-      ${handleHtml}
       ${checkboxHtml}
       <div class="main-info">
         <div class="item-name">${escapeHtml(item.name)}</div>
@@ -1492,104 +1480,17 @@ function renderResults(){
     wrap.appendChild(hint);
   }
 
-  const LONG_PRESS_MS = 480;
-  const MOVE_TOLERANCE = 10;
-
   wrap.querySelectorAll('.row').forEach(rowEl => {
     const idx = parseInt(rowEl.dataset.idx);
-    let lpTimer = null;
-    let lpFired = false;
-    let startX = 0, startY = 0;
-
-    const clearLP = () => { if(lpTimer){ clearTimeout(lpTimer); lpTimer = null; } };
-
-    rowEl.addEventListener('pointerdown', (e) => {
-      if(selectMode || e.target.closest('.drag-handle')) return;
-      lpFired = false;
-      startX = e.clientX; startY = e.clientY;
-      lpTimer = setTimeout(() => {
-        lpFired = true;
-        if(navigator.vibrate) navigator.vibrate(35);
-        openMoveSheet([idx]);
-      }, LONG_PRESS_MS);
-    });
-    rowEl.addEventListener('pointermove', (e) => {
-      if(lpTimer && (Math.abs(e.clientX - startX) > MOVE_TOLERANCE || Math.abs(e.clientY - startY) > MOVE_TOLERANCE)){
-        clearLP();
-      }
-    });
-    rowEl.addEventListener('pointerup', clearLP);
-    rowEl.addEventListener('pointercancel', clearLP);
-
-    rowEl.addEventListener('click', (e) => {
-      if(e.target.closest('.drag-handle')) return;
-      if(lpFired){ lpFired = false; return; }
+    rowEl.addEventListener('click', () => {
       if(selectMode){ toggleSelect(idx); } else { openEditSheet(idx); }
     });
   });
-
-  wrap.querySelectorAll('.drag-handle').forEach(handle => {
-    handle.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      startDragReorder(handle, e);
-    });
-  });
-}
-
-function startDragReorder(handle, startEvent){
-  const rowEl = handle.closest('.row');
-  const container = el('resultsWrap');
-  if(!rowEl || !container) return;
-  const pointerId = startEvent.pointerId;
-  try{ handle.setPointerCapture(pointerId); }catch(e){}
-  rowEl.classList.add('dragging');
-
-  function onMove(e){
-    const y = e.clientY;
-    const rows = Array.from(container.querySelectorAll('.row'));
-    let target = null;
-    for(const r of rows){
-      if(r === rowEl) continue;
-      const rect = r.getBoundingClientRect();
-      if(y < rect.top + rect.height / 2){ target = r; break; }
-    }
-    if(target){
-      if(target !== rowEl.nextSibling) container.insertBefore(rowEl, target);
-    } else if(container.lastElementChild !== rowEl){
-      container.appendChild(rowEl);
-    }
-  }
-  function onUp(){
-    try{ handle.releasePointerCapture(pointerId); }catch(e){}
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
-    document.removeEventListener('pointercancel', onUp);
-    rowEl.classList.remove('dragging');
-    const finalOrderIdx = Array.from(container.querySelectorAll('.row')).map(r => parseInt(r.dataset.idx));
-    commitReorder(finalOrderIdx);
-  }
-  document.addEventListener('pointermove', onMove);
-  document.addEventListener('pointerup', onUp);
-  document.addEventListener('pointercancel', onUp);
 }
 
 function renumberCompany(co){
   let n = 1;
   ITEMS.forEach(i => { if(i.company === co){ i.sr = n++; } });
-}
-
-function commitReorder(finalOrderIdx){
-  if(!finalOrderIdx || finalOrderIdx.length < 2) return;
-  const idxSet = new Set(finalOrderIdx);
-  const targetItems = finalOrderIdx.map(i => ITEMS[i]).filter(Boolean);
-  if(targetItems.length !== finalOrderIdx.length) { renderResults(); return; }
-  let p = 0;
-  const newItems = ITEMS.map((item, idx) => idxSet.has(idx) ? targetItems[p++] : item);
-  ITEMS = newItems;
-  const companiesTouched = new Set(targetItems.map(i => i.company));
-  companiesTouched.forEach(co => renumberCompany(co));
-  saveItems();
-  renderResults();
 }
 
 function openMoveSheet(idxOrArr){
