@@ -241,6 +241,14 @@
     transition: background .12s;
   }
   .row:active{ background: rgba(140,47,27,0.08); }
+  .row.dragging{ background: rgba(140,47,27,0.12); opacity:0.85; box-shadow: 0 4px 10px rgba(36,33,27,0.2); position:relative; z-index:5; }
+  .drag-handle{
+    flex:0 0 auto; width:24px; align-self:stretch;
+    display:flex; align-items:center; justify-content:center;
+    color: var(--ink-soft); font-size:19px; letter-spacing:-2px;
+    cursor:grab; touch-action:none; user-select:none;
+  }
+  .drag-handle:active{ color: var(--seal); cursor:grabbing; }
   .row .sr{
     font-family:'IBM Plex Mono',monospace;
     font-size:13px;
@@ -289,6 +297,17 @@
   .row .qty{
     font-size: var(--fs-qty); font-weight:700; color: #a0430c;
   }
+
+  .move-item-name{
+    font-size:14px; color: var(--ink-soft); display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .move-co-row{
+    padding:13px 10px;
+    border-bottom:1px dashed var(--rule);
+    font-size:15px; font-weight:600;
+    cursor:pointer;
+  }
+  .move-co-row:active{ background: rgba(140,47,27,0.08); }
 
   .result-hint{
     font-family:'IBM Plex Mono',monospace;
@@ -641,6 +660,7 @@
 <div class="select-bar" id="selectBar" style="display:none;">
   <span id="selectCount">0 પસંદ કર્યા</span>
   <button class="btn btn-whatsapp" id="selectShareBtn">Share</button>
+  <button class="btn-save btn" id="selectMoveBtn">Move</button>
   <button class="btn-cancel btn" id="selectCancelBtn">રદ</button>
 </div>
 
@@ -727,6 +747,24 @@
   </div>
 </div>
 
+<div class="overlay" id="moveOverlay">
+  <div class="sheet">
+    <h2>Company બદલો <button class="close-x" id="moveCloseX">×</button></h2>
+    <div class="move-item-name" id="moveItemName"></div>
+    <div class="field" style="margin-top:12px;">
+      <label>નવી Company (લખો)</label>
+      <div style="display:flex; gap:8px;">
+        <input id="moveNewCompany" placeholder="દા.ત. SUN" style="flex:1;">
+        <button class="btn-save btn" id="moveNewCompanyBtn" style="flex:0 0 auto; padding:0 18px;">Move</button>
+      </div>
+    </div>
+    <div class="search-wrap" style="margin:14px 0 8px;">
+      <input id="moveSearch" type="text" placeholder="અથવા Company શોધીને પસંદ કરો..." autocomplete="off">
+    </div>
+    <div id="moveCompanyList" style="max-height:38vh; overflow-y:auto;"></div>
+  </div>
+</div>
+
 
 
 <div class="overlay" id="analysisOverlay">
@@ -789,6 +827,7 @@ let activeCompanyFilter = null;
 const RENDER_LIMIT = 150;
 let selectMode = false;
 let selectedIdx = new Set();
+let moveItemIdxs = null;
 
 const el = (id) => document.getElementById(id);
 
@@ -1425,7 +1464,11 @@ function renderResults(){
     const checkboxHtml = selectMode
       ? `<input type="checkbox" class="row-check" data-idx="${realIndex}" ${selectedIdx.has(realIndex) ? 'checked' : ''}>`
       : '';
+    const handleHtml = selectMode
+      ? ''
+      : `<div class="drag-handle" data-idx="${realIndex}" title="ઉપર-નીચે ખસેડો">⠿</div>`;
     html += `<div class="row" data-idx="${realIndex}">
+      ${handleHtml}
       ${checkboxHtml}
       <div class="main-info">
         <div class="item-name">${escapeHtml(item.name)}</div>
@@ -1449,12 +1492,178 @@ function renderResults(){
     wrap.appendChild(hint);
   }
 
+  const LONG_PRESS_MS = 480;
+  const MOVE_TOLERANCE = 10;
+
   wrap.querySelectorAll('.row').forEach(rowEl => {
-    rowEl.addEventListener('click', () => {
-      const idx = parseInt(rowEl.dataset.idx);
+    const idx = parseInt(rowEl.dataset.idx);
+    let lpTimer = null;
+    let lpFired = false;
+    let startX = 0, startY = 0;
+
+    const clearLP = () => { if(lpTimer){ clearTimeout(lpTimer); lpTimer = null; } };
+
+    rowEl.addEventListener('pointerdown', (e) => {
+      if(selectMode || e.target.closest('.drag-handle')) return;
+      lpFired = false;
+      startX = e.clientX; startY = e.clientY;
+      lpTimer = setTimeout(() => {
+        lpFired = true;
+        if(navigator.vibrate) navigator.vibrate(35);
+        openMoveSheet([idx]);
+      }, LONG_PRESS_MS);
+    });
+    rowEl.addEventListener('pointermove', (e) => {
+      if(lpTimer && (Math.abs(e.clientX - startX) > MOVE_TOLERANCE || Math.abs(e.clientY - startY) > MOVE_TOLERANCE)){
+        clearLP();
+      }
+    });
+    rowEl.addEventListener('pointerup', clearLP);
+    rowEl.addEventListener('pointercancel', clearLP);
+
+    rowEl.addEventListener('click', (e) => {
+      if(e.target.closest('.drag-handle')) return;
+      if(lpFired){ lpFired = false; return; }
       if(selectMode){ toggleSelect(idx); } else { openEditSheet(idx); }
     });
   });
+
+  wrap.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      startDragReorder(handle, e);
+    });
+  });
+}
+
+function startDragReorder(handle, startEvent){
+  const rowEl = handle.closest('.row');
+  const container = el('resultsWrap');
+  if(!rowEl || !container) return;
+  const pointerId = startEvent.pointerId;
+  try{ handle.setPointerCapture(pointerId); }catch(e){}
+  rowEl.classList.add('dragging');
+
+  function onMove(e){
+    const y = e.clientY;
+    const rows = Array.from(container.querySelectorAll('.row'));
+    let target = null;
+    for(const r of rows){
+      if(r === rowEl) continue;
+      const rect = r.getBoundingClientRect();
+      if(y < rect.top + rect.height / 2){ target = r; break; }
+    }
+    if(target){
+      if(target !== rowEl.nextSibling) container.insertBefore(rowEl, target);
+    } else if(container.lastElementChild !== rowEl){
+      container.appendChild(rowEl);
+    }
+  }
+  function onUp(){
+    try{ handle.releasePointerCapture(pointerId); }catch(e){}
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onUp);
+    rowEl.classList.remove('dragging');
+    const finalOrderIdx = Array.from(container.querySelectorAll('.row')).map(r => parseInt(r.dataset.idx));
+    commitReorder(finalOrderIdx);
+  }
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', onUp);
+}
+
+function renumberCompany(co){
+  let n = 1;
+  ITEMS.forEach(i => { if(i.company === co){ i.sr = n++; } });
+}
+
+function commitReorder(finalOrderIdx){
+  if(!finalOrderIdx || finalOrderIdx.length < 2) return;
+  const idxSet = new Set(finalOrderIdx);
+  const targetItems = finalOrderIdx.map(i => ITEMS[i]).filter(Boolean);
+  if(targetItems.length !== finalOrderIdx.length) { renderResults(); return; }
+  let p = 0;
+  const newItems = ITEMS.map((item, idx) => idxSet.has(idx) ? targetItems[p++] : item);
+  ITEMS = newItems;
+  const companiesTouched = new Set(targetItems.map(i => i.company));
+  companiesTouched.forEach(co => renumberCompany(co));
+  saveItems();
+  renderResults();
+}
+
+function openMoveSheet(idxOrArr){
+  const idxs = Array.isArray(idxOrArr) ? idxOrArr.slice() : [idxOrArr];
+  const items = idxs.map(i => ITEMS[i]).filter(Boolean);
+  if(items.length === 0) return;
+  moveItemIdxs = idxs;
+  if(items.length === 1){
+    el('moveItemName').innerHTML = `<span class="co-tag">${escapeHtml(items[0].company)}</span> ${escapeHtml(items[0].name)}`;
+  } else {
+    el('moveItemName').innerHTML = `<b>${items.length} items</b> પસંદ કરેલા`;
+  }
+  el('moveNewCompany').value = '';
+  el('moveSearch').value = '';
+  renderMoveCompanyList();
+  el('moveOverlay').classList.add('show');
+}
+
+function closeMoveSheet(){
+  el('moveOverlay').classList.remove('show');
+  moveItemIdxs = null;
+}
+
+function renderMoveCompanyList(){
+  if(!moveItemIdxs || moveItemIdxs.length === 0) return;
+  const items = moveItemIdxs.map(i => ITEMS[i]).filter(Boolean);
+  if(items.length === 0) return;
+  const currentCompanies = new Set(items.map(i => i.company));
+  const q = normalize(el('moveSearch').value).trim();
+  let companies = Array.from(new Set(ITEMS.map(i => i.company))).filter(c => !currentCompanies.has(c) || currentCompanies.size > 1).sort();
+  if(q) companies = companies.filter(c => normalize(c).indexOf(q) !== -1);
+  const wrap = el('moveCompanyList');
+  if(companies.length === 0){
+    wrap.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="stamp-icon">Company ન મળી</div></div>';
+    return;
+  }
+  wrap.innerHTML = companies.map(c => `<div class="move-co-row" data-co="${escapeHtml(c)}">${escapeHtml(c)}</div>`).join('');
+  wrap.querySelectorAll('.move-co-row').forEach(r => {
+    r.addEventListener('click', () => moveItemToCompany(r.dataset.co));
+  });
+}
+
+function moveItemToCompany(newCompany){
+  newCompany = (newCompany || '').trim();
+  if(!newCompany || !moveItemIdxs || moveItemIdxs.length === 0) return;
+  const items = moveItemIdxs.map(i => ITEMS[i]).filter(Boolean);
+  if(items.length === 0) return;
+  const touchedCompanies = new Set();
+  let movedCount = 0;
+  items.forEach(item => {
+    if(item.company === newCompany) return;
+    touchedCompanies.add(item.company);
+    item.company = newCompany;
+    movedCount++;
+  });
+  touchedCompanies.add(newCompany);
+  touchedCompanies.forEach(co => renumberCompany(co));
+  saveItems();
+  if(movedCount === 1){
+    showToast(items[0].name + ' → ' + newCompany + ' માં ખસેડ્યું');
+  } else if(movedCount > 1){
+    showToast(movedCount + ' items → ' + newCompany + ' માં ખસેડ્યા');
+  }
+  closeMoveSheet();
+  if(selectMode){
+    selectMode = false;
+    selectedIdx.clear();
+    el('selectModeBtn').classList.remove('active-select');
+    el('addFab').style.display = 'flex';
+    renderSelectBar();
+  }
+  renderChips();
+  updateCompanyDatalist();
+  renderResults();
 }
 
 function toggleSelectMode(){
@@ -1694,6 +1903,10 @@ el('selectShareBtn').addEventListener('click', () => {
   const items = Array.from(selectedIdx).sort((a,b)=>a-b).map(i => ITEMS[i]).filter(Boolean);
   exportItemsToExcel(items, 'selected-items', 'Selected Items');
 });
+el('selectMoveBtn').addEventListener('click', () => {
+  if(selectedIdx.size === 0) return;
+  openMoveSheet(Array.from(selectedIdx));
+});
 el('selectCancelBtn').addEventListener('click', () => {
   selectMode = false;
   selectedIdx.clear();
@@ -1753,6 +1966,12 @@ el('orderShareBtn').addEventListener('click', doShareWhatsApp);
 el('pickerCloseX').addEventListener('click', closeItemPicker);
 el('pickerOverlay').addEventListener('click', (e) => { if(e.target.id === 'pickerOverlay') closeItemPicker(); });
 el('pickerSearch').addEventListener('input', renderPickerResults);
+
+el('moveCloseX').addEventListener('click', closeMoveSheet);
+el('moveOverlay').addEventListener('click', (e) => { if(e.target.id === 'moveOverlay') closeMoveSheet(); });
+el('moveSearch').addEventListener('input', renderMoveCompanyList);
+el('moveNewCompanyBtn').addEventListener('click', () => moveItemToCompany(el('moveNewCompany').value));
+el('moveNewCompany').addEventListener('keydown', (e) => { if(e.key === 'Enter') moveItemToCompany(el('moveNewCompany').value); });
 
 loadItems();
 
