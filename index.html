@@ -71,11 +71,11 @@
     padding: calc(14px + env(safe-area-inset-top)) 16px 10px;
   }
   .brand-row{
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    display:flex; align-items:center; justify-content:flex-start; gap:14px;
     margin-bottom:12px;
   }
   .brand{
-    display:flex; align-items:baseline; gap:8px;
+    display:flex; flex-direction:column; align-items:flex-start; gap:5px;
   }
   .brand h1{
     font-family:'Special Elite',monospace;
@@ -96,13 +96,14 @@
     border: 2px solid var(--seal);
     color: var(--seal);
     border-radius: 999px;
-    padding: 5px 12px;
+    padding: 4px 11px;
     transform: rotate(-4deg);
     white-space:nowrap;
     background: rgba(140,47,27,0.05);
+    align-self:flex-start;
   }
   .header-actions{
-    display:flex; align-items:center; gap:6px; margin-left:auto;
+    display:flex; align-items:center; gap:6px;
   }
   .stack-btns{
     display:flex; flex-direction:column; gap:4px;
@@ -612,6 +613,7 @@
   <div class="brand-row">
     <div class="brand">
       <h1>STOCK</h1>
+      <div class="count-stamp" id="countStamp">0 items</div>
     </div>
     <div class="header-actions">
       <button class="icon-btn" id="selectModeBtn" title="Items Select કરો">☑</button>
@@ -624,7 +626,6 @@
       <button class="icon-btn" id="fontToggleBtn" title="Font સાઈઝ">Aa</button>
       <input type="file" id="importFile" accept="application/json,.json,.xlsx" style="display:none;">
     </div>
-    <div class="count-stamp" id="countStamp">0 items</div>
   </div>
   <div class="search-wrap">
     <input id="searchInput" type="text" placeholder="શોધો... (item, company, price)" autocomplete="off">
