@@ -650,9 +650,13 @@
 </main>
 
 <div class="select-bar" id="selectBar" style="display:none;">
-  <span id="selectCount">0 પસંદ કર્યા</span>
+  <label style="display:flex; align-items:center; gap:6px; flex:1; min-width:0; cursor:pointer;">
+    <input type="checkbox" id="selectAllCheckbox">
+    <span id="selectCount">0 પસંદ કર્યા</span>
+  </label>
   <button class="btn btn-whatsapp" id="selectShareBtn">Share</button>
   <button class="btn-save btn" id="selectMoveBtn">Move</button>
+  <button class="btn-delete btn" id="selectDeleteBtn" title="Delete">🗑</button>
   <button class="btn-cancel btn" id="selectCancelBtn">રદ</button>
 </div>
 
@@ -1584,9 +1588,30 @@ function toggleSelect(idx){
 
 function renderSelectBar(){
   const bar = el('selectBar');
-  if(!selectMode || selectedIdx.size === 0){ bar.style.display = 'none'; return; }
+  if(!selectMode){ bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
   el('selectCount').textContent = selectedIdx.size + ' પસંદ કર્યા';
+  const filtered = getFiltered();
+  const filteredIdxs = filtered.map(item => ITEMS.indexOf(item)).filter(i => i !== -1);
+  el('selectAllCheckbox').checked = filteredIdxs.length > 0 && filteredIdxs.every(i => selectedIdx.has(i));
+}
+
+function deleteSelected(){
+  if(selectedIdx.size === 0) return;
+  const count = selectedIdx.size;
+  const ok = confirm(count + ' item ડિલીટ કરવા છે? આ પાછું નહીં આવે.');
+  if(!ok) return;
+  Array.from(selectedIdx).sort((a, b) => b - a).forEach(i => ITEMS.splice(i, 1));
+  saveItems();
+  selectMode = false;
+  selectedIdx.clear();
+  el('selectModeBtn').classList.remove('active-select');
+  el('addFab').style.display = 'flex';
+  renderChips();
+  updateCompanyDatalist();
+  renderResults();
+  renderSelectBar();
+  showToast(count + ' item ડિલીટ થયા');
 }
 
 function escapeHtml(s){
@@ -1801,12 +1826,24 @@ function renderAnalysis(){
   `).join('');
 }
 el('selectShareBtn').addEventListener('click', () => {
+  if(selectedIdx.size === 0) return;
   const items = Array.from(selectedIdx).sort((a,b)=>a-b).map(i => ITEMS[i]).filter(Boolean);
   exportItemsToExcel(items, 'selected-items', 'Selected Items');
 });
 el('selectMoveBtn').addEventListener('click', () => {
   if(selectedIdx.size === 0) return;
   openMoveSheet(Array.from(selectedIdx));
+});
+el('selectDeleteBtn').addEventListener('click', deleteSelected);
+el('selectAllCheckbox').addEventListener('change', (e) => {
+  const filtered = getFiltered();
+  filtered.forEach(item => {
+    const idx = ITEMS.indexOf(item);
+    if(idx === -1) return;
+    if(e.target.checked) selectedIdx.add(idx); else selectedIdx.delete(idx);
+  });
+  renderResults();
+  renderSelectBar();
 });
 el('selectCancelBtn').addEventListener('click', () => {
   selectMode = false;
