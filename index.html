@@ -614,6 +614,15 @@
   }
 
   /* ---------- Sheet Edit (Excel-style) ---------- */
+  .sheet-tall{
+    display:flex;
+    flex-direction:column;
+    height: calc(95vh - var(--kb-height));
+    max-height: calc(95vh - var(--kb-height));
+    overflow-y:hidden;
+  }
+  .sheet-tall > h2{ flex:0 0 auto; }
+  .sheet-tall > .xl-toolbar{ flex:0 0 auto; }
   .xl-table-wrap{
     overflow-x:auto; overflow-y:auto;
     -webkit-overflow-scrolling:touch;
@@ -621,6 +630,11 @@
     border:1.5px solid var(--rule);
     border-radius:8px;
     margin-top:4px;
+  }
+  .sheet-tall .xl-table-wrap{
+    flex:1 1 auto;
+    min-height:0;
+    max-height:none;
   }
   table.xl-table{
     border-collapse:collapse;
@@ -649,10 +663,24 @@
     background:#fff;
   }
   table.xl-table tbody tr:nth-child(even) td{ background: var(--paper-row); }
+  table.xl-table tbody tr.xl-active-row td{
+    background: #FBE1CF !important;
+    border-top: 2px solid var(--seal);
+    border-bottom: 2px solid var(--seal);
+  }
+  table.xl-table tbody tr.xl-active-row td.xl-sr{
+    background: #F3C79B !important;
+    color: var(--seal);
+    font-weight:700;
+  }
   table.xl-table td.xl-sr{
     text-align:center; color: var(--ink-soft); font-size:13px;
     min-width:28px; background:#F6F2E4 !important;
+    cursor:pointer;
+    user-select:none;
+    -webkit-user-select:none;
   }
+  table.xl-table td.xl-sr:active{ background:#EAD9BE !important; }
   table.xl-table input{
     width:100%;
     border:1px solid transparent;
@@ -672,21 +700,26 @@
   table.xl-table td.xl-price input, table.xl-table td.xl-qty input{ text-align:right; padding-left:2px; padding-right:2px; }
   table.xl-table td.xl-name input{ padding-left:5px; }
   .xl-toolbar{
-    display:flex; justify-content:space-between; align-items:center;
-    gap:10px; margin-top:12px; flex-wrap:wrap;
+    display:flex; align-items:center;
+    gap:6px; margin-top:12px; flex-wrap:nowrap;
   }
-  .xl-add-row-btn{
+  .xl-tb-btn{
+    flex:1 1 0; min-width:0;
     font-family:'IBM Plex Mono',monospace;
-    font-size:12px; font-weight:600;
-    padding:9px 14px;
+    font-size:11.5px; font-weight:700;
+    padding:10px 3px;
     border-radius:8px;
-    border:1.5px dashed var(--rule);
-    background:transparent;
-    color: var(--ink-soft);
     cursor:pointer;
     white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    text-align:center;
   }
-  .xl-save-group{ display:flex; gap:8px; flex:1; justify-content:flex-end; }
+  .xl-tb-add{ border:1.5px dashed var(--rule); background:transparent; color: var(--ink-soft); }
+  .xl-tb-del{ border:1.5px dashed #B2432B; background:transparent; color:#B2432B; }
+  .xl-tb-cancel{ border:1.5px solid var(--rule); background:transparent; color: var(--ink-soft); }
+  .xl-tb-save{ border:none; background: var(--seal); color: var(--paper); flex:1.3 1 0; }
+  .xl-tb-save:active{ background: var(--seal-dark); }
   .xl-hint{
     font-family:'IBM Plex Mono',monospace;
     font-size:11px; color: var(--ink-soft);
@@ -856,15 +889,15 @@
 </div>
 
 <div class="overlay" id="sheetOverlay">
-  <div class="sheet" style="max-width:760px; margin:0 auto;">
+  <div class="sheet sheet-tall" style="max-width:760px; margin:0 auto;">
     <h2><span id="sheetEditTitleText">Sheet Edit</span> <button class="close-x" id="sheetCloseX">×</button></h2>
     <div class="xl-table-wrap">
       <table class="xl-table" id="sheetTable">
         <colgroup>
-          <col style="width:11%">
-          <col style="width:47%">
-          <col style="width:19%">
-          <col style="width:23%">
+          <col style="width:9%">
+          <col style="width:55%">
+          <col style="width:18%">
+          <col style="width:18%">
         </colgroup>
         <thead>
           <tr>
@@ -878,11 +911,10 @@
       </table>
     </div>
     <div class="xl-toolbar">
-      <button class="xl-add-row-btn" id="sheetAddRowBtn">+ Row ઉમેરો</button>
-      <div class="xl-save-group">
-        <button class="btn-cancel btn" id="sheetCancelBtn" style="flex:0 0 auto;">રદ</button>
-        <button class="btn-save btn" id="sheetSaveBtn" style="flex:0 0 auto;">બધું Save કરો</button>
-      </div>
+      <button class="xl-tb-btn xl-tb-add" id="sheetAddRowBtn">+ Row</button>
+      <button class="xl-tb-btn xl-tb-del" id="sheetDelRowBtn">🗑 Row</button>
+      <button class="xl-tb-btn xl-tb-cancel" id="sheetCancelBtn">રદ</button>
+      <button class="xl-tb-btn xl-tb-save" id="sheetSaveBtn">Save</button>
     </div>
   </div>
 </div>
@@ -1940,6 +1972,7 @@ function renderAnalysis(){
 }
 /* SHEET EDIT (Excel-like inline bulk edit for the active company) */
 let sheetWorking = []; // working copy of rows currently in the sheet editor
+let sheetActiveRow = null; // row index selected via tapping its SR number, used for "+ Row ઉમેરો" position and delete
 
 function openSheetEdit(){
   if(!activeCompanyFilter){
@@ -1947,6 +1980,7 @@ function openSheetEdit(){
     return;
   }
   sheetWorking = ITEMS.filter(i => i.company === activeCompanyFilter).map(i => ({ ...i }));
+  sheetActiveRow = null;
   el('sheetEditTitleText').textContent = 'Sheet Edit — ' + activeCompanyFilter;
   renderSheetTable();
   el('sheetOverlay').classList.add('show');
@@ -1955,6 +1989,7 @@ function openSheetEdit(){
 function closeSheetEdit(){
   el('sheetOverlay').classList.remove('show');
   sheetWorking = [];
+  sheetActiveRow = null;
 }
 
 function renderSheetTable(){
@@ -1983,9 +2018,9 @@ function renderSheetTable(){
         if(firstDot !== -1) raw = raw.slice(0, firstDot + 1) + raw.slice(firstDot + 1).replace(/\./g, '');
         if(raw !== inp.value) inp.value = raw;
         let num = raw === '' || raw === '.' ? '' : Number(raw);
-        if(num !== '' && !isNaN(num) && num > 9999){
-          num = 9999;
-          inp.value = '9999';
+        if(num !== '' && !isNaN(num) && num > 99999){
+          num = 99999;
+          inp.value = '99999';
         }
         sheetWorking[row][field] = num;
       } else {
@@ -1993,6 +2028,8 @@ function renderSheetTable(){
       }
     });
   });
+
+  highlightSheetActiveRow();
 }
 
 const SHEET_FIELDS = ['name', 'price', 'qty'];
@@ -2002,19 +2039,46 @@ function focusSheetCell(row, field){
   if(inp){ inp.focus(); }
 }
 
+function highlightSheetActiveRow(){
+  const tbody = el('sheetTableBody');
+  tbody.querySelectorAll('tr.xl-active-row').forEach(tr => tr.classList.remove('xl-active-row'));
+  if(sheetActiveRow !== null){
+    const tr = tbody.querySelector(`tr[data-row="${sheetActiveRow}"]`);
+    if(tr) tr.classList.add('xl-active-row');
+  }
+}
+
 function addSheetRow(){
-  sheetWorking.push({ sr: sheetWorking.length + 1, company: activeCompanyFilter, label: '', name: '', price: '', qty: '' });
+  const blank = { sr: 0, company: activeCompanyFilter, label: '', name: '', price: '', qty: '' };
+  let insertAt;
+  if(sheetActiveRow !== null && sheetActiveRow >= 0 && sheetActiveRow < sheetWorking.length){
+    insertAt = sheetActiveRow + 1;
+    sheetWorking.splice(insertAt, 0, blank);
+  } else {
+    insertAt = sheetWorking.length;
+    sheetWorking.push(blank);
+  }
+  sheetActiveRow = insertAt;
   renderSheetTable();
-  const wrap = el('sheetTable').closest('.xl-table-wrap');
-  wrap.scrollTop = wrap.scrollHeight;
   setTimeout(() => {
-    const lastInput = tbodyLastNameInput();
-    if(lastInput) lastInput.focus();
+    focusSheetCell(insertAt, 'name');
+    const inp = el('sheetTableBody').querySelector(`input[data-row="${insertAt}"][data-field="name"]`);
+    if(inp) inp.scrollIntoView({ block: 'center' });
   }, 30);
 }
-function tbodyLastNameInput(){
-  const inputs = el('sheetTableBody').querySelectorAll('input[data-field="name"]');
-  return inputs.length ? inputs[inputs.length - 1] : null;
+
+function deleteSheetActiveRow(){
+  if(sheetActiveRow === null || sheetActiveRow < 0 || sheetActiveRow >= sheetWorking.length){
+    showToast('પહેલા SR નંબર પર tap કરી row પસંદ કરો');
+    return;
+  }
+  const item = sheetWorking[sheetActiveRow];
+  const ok = confirm((item.name ? item.name : 'આ row') + ' ડિલીટ કરવી છે? આ પાછું નહીં આવે.');
+  if(!ok) return;
+  sheetWorking.splice(sheetActiveRow, 1);
+  sheetActiveRow = null;
+  renderSheetTable();
+  showToast('Row કાઢી નાખી');
 }
 
 function saveSheetEdit(){
@@ -2043,14 +2107,28 @@ el('sheetCloseX').addEventListener('click', closeSheetEdit);
 el('sheetCancelBtn').addEventListener('click', closeSheetEdit);
 el('sheetOverlay').addEventListener('click', (e) => { if(e.target.id === 'sheetOverlay') closeSheetEdit(); });
 el('sheetAddRowBtn').addEventListener('click', addSheetRow);
+el('sheetDelRowBtn').addEventListener('click', deleteSheetActiveRow);
 el('sheetSaveBtn').addEventListener('click', saveSheetEdit);
 
-/* Excel-style: tap a cell selects its whole value so typing replaces it directly */
+/* Excel-style: tap a cell selects its whole value so typing replaces it directly (editing only, no row selection) */
 el('sheetTableBody').addEventListener('focusin', (e) => {
   if(e.target.matches('input[data-field]')){
     const inp = e.target;
     setTimeout(() => { try{ inp.select(); }catch(err){} }, 0);
   }
+});
+
+/* Tap the SR (row number) cell to select that row — highlights it, without opening it for editing.
+   That selection decides where "+ Row ઉમેરો" inserts, and which row "🗑 Row કાઢો" removes.
+   Tapping the same SR again de-selects it. */
+el('sheetTableBody').addEventListener('click', (e) => {
+  const td = e.target.closest('td.xl-sr');
+  if(!td) return;
+  const tr = td.closest('tr[data-row]');
+  if(!tr) return;
+  const row = parseInt(tr.dataset.row);
+  sheetActiveRow = (sheetActiveRow === row) ? null : row;
+  highlightSheetActiveRow();
 });
 
 /* Enter key: commit this cell and jump straight to the same field on the next row (e.g. Qty -> next Qty).
