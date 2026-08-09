@@ -2010,7 +2010,12 @@ async function doShareSheetEditWhatsApp(){
     const canvas = await html2canvas(target, { backgroundColor: '#ffffff', scale: 3 });
     canvas.toBlob(async (blob) => {
       if(!blob){ showToast('Image બનાવવામાં ભૂલ'); return; }
-      const fileName = (activeCompanyFilter || 'sheet') + '-sheet.jpg';
+      const today = new Date();
+      const dd2 = String(today.getDate()).padStart(2,'0');
+      const mm2 = String(today.getMonth()+1).padStart(2,'0');
+      const yy2 = String(today.getFullYear()).slice(-2);
+      const coSlug = (activeCompanyFilter || 'sheet').toLowerCase().replace(/\s+/g, '-');
+      const fileName = coSlug + '-stock-' + dd2 + '.' + mm2 + '.' + yy2 + '.jpg';
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
