@@ -913,6 +913,7 @@
     <div class="xl-toolbar">
       <button class="xl-tb-btn xl-tb-add" id="sheetAddRowBtn">+ Row</button>
       <button class="xl-tb-btn xl-tb-del" id="sheetDelRowBtn">🗑 Row</button>
+      <button class="xl-tb-btn" id="sheetShareBtn" style="background:#25D366; color:#fff; border-color:#25D366;">📤 Share</button>
       <button class="xl-tb-btn xl-tb-cancel" id="sheetCancelBtn">રદ</button>
       <button class="xl-tb-btn xl-tb-save" id="sheetSaveBtn">Save</button>
     </div>
@@ -1970,6 +1971,62 @@ function renderAnalysis(){
     </div>
   `).join('');
 }
+function buildSheetEditShareHTML(){
+  const co = activeCompanyFilter || '';
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2,'0');
+  const mm = String(today.getMonth()+1).padStart(2,'0');
+  const yyyy = today.getFullYear();
+  const dateStr = dd + '-' + mm + '-' + yyyy;
+  let rows = '';
+  sheetWorking.forEach((it, i) => {
+    rows += `<tr>
+      <td style="text-align:center; white-space:nowrap; border:1px solid #000; padding:6px 8px; font-size:15px;">${i + 1}</td>
+      <td style="text-align:left; white-space:nowrap; border:1px solid #000; padding:6px 8px; font-size:15px;">${escapeHtml(it.name || '')}${it.label ? '<div style="font-size:11px; color:#4a4536; line-height:1; margin-top:2px;">' + escapeHtml(it.label) + '</div>' : ''}</td>
+      <td style="text-align:right; white-space:nowrap; border:1px solid #000; padding:6px 8px; font-size:15px; font-weight:700;">${it.qty !== '' && it.qty != null ? fmtNum(it.qty) : ''}</td>
+    </tr>`;
+  });
+  return `<div class="sheet-copy" style="width:auto; display:inline-block;">
+    <div class="sheet-label">${escapeHtml(co)} Stock</div>
+    <div class="sheet-meta"><div><b>Date:</b> ${dateStr}</div></div>
+    <table style="table-layout:auto; width:auto;">
+      <thead><tr>
+        <th style="border:1px solid #000; padding:6px 8px; background:#eee; font-size:15px;">Sr</th>
+        <th style="border:1px solid #000; padding:6px 8px; background:#eee; text-align:left; font-size:15px;">Item Name</th>
+        <th style="border:1px solid #000; padding:6px 8px; background:#eee; text-align:right; font-size:15px;">Qty</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+async function doShareSheetEditWhatsApp(){
+  if(sheetWorking.length === 0){ showToast('કોઈ item નથી'); return; }
+  el('printArea').innerHTML = buildSheetEditShareHTML();
+  showToast('Image બનાવાય છે...');
+  try{
+    await loadHtml2Canvas();
+    const target = el('printArea').querySelector('.sheet-copy');
+    const canvas = await html2canvas(target, { backgroundColor: '#ffffff', scale: 3 });
+    canvas.toBlob(async (blob) => {
+      if(!blob){ showToast('Image બનાવવામાં ભૂલ'); return; }
+      const fileName = (activeCompanyFilter || 'sheet') + '-sheet.jpg';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      showToast('Image save થઈ — WhatsApp માં manually attach કરો');
+    }, 'image/jpeg', 0.98);
+  }catch(e){
+    showToast('Share ન થયું: ' + ((e && e.message) || e));
+  }
+}
+el('sheetShareBtn').addEventListener('click', doShareSheetEditWhatsApp);
+
 /* SHEET EDIT (Excel-like inline bulk edit for the active company) */
 let sheetWorking = []; // working copy of rows currently in the sheet editor
 let sheetActiveRow = null; // row index selected via tapping its SR number, used for "+ Row ઉમેરો" position and delete
@@ -2001,7 +2058,10 @@ function renderSheetTable(){
   tbody.innerHTML = sheetWorking.map((item, i) => `
     <tr data-row="${i}">
       <td class="xl-sr">${i + 1}</td>
-      <td class="xl-name"><input type="text" data-field="name" data-row="${i}" value="${escapeHtml(item.name || '')}"></td>
+      <td class="xl-name">
+        <input type="text" data-field="name" data-row="${i}" value="${escapeHtml(item.name || '')}" style="${item.label ? 'padding-bottom:2px;' : ''}">
+        ${item.label ? '<div style="font-size:11px; color:#4a4536; line-height:1; margin:-1px 0 3px 6px;">' + escapeHtml(item.label) + '</div>' : ''}
+      </td>
       <td class="xl-price"><input type="text" inputmode="decimal" pattern="[0-9]*\\.?[0-9]*" data-field="price" data-row="${i}" value="${item.price === '' || item.price === undefined ? '' : item.price}"></td>
       <td class="xl-qty"><input type="text" inputmode="decimal" pattern="[0-9]*\\.?[0-9]*" data-field="qty" data-row="${i}" value="${item.qty === '' || item.qty === undefined ? '' : item.qty}"></td>
     </tr>
@@ -2052,7 +2112,7 @@ function addSheetRow(){
   const blank = { sr: 0, company: activeCompanyFilter, label: '', name: '', price: '', qty: '' };
   let insertAt;
   if(sheetActiveRow !== null && sheetActiveRow >= 0 && sheetActiveRow < sheetWorking.length){
-    insertAt = sheetActiveRow + 1;
+    insertAt = sheetActiveRow;
     sheetWorking.splice(insertAt, 0, blank);
   } else {
     insertAt = sheetWorking.length;
