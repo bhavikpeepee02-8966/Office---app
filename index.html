@@ -613,6 +613,86 @@
     white-space:nowrap; flex:0 0 auto;
   }
 
+  /* ---------- Sheet Edit (Excel-style) ---------- */
+  .xl-table-wrap{
+    overflow-x:auto; overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    max-height:58vh;
+    border:1.5px solid var(--rule);
+    border-radius:8px;
+    margin-top:4px;
+  }
+  table.xl-table{
+    border-collapse:collapse;
+    width:100%;
+    table-layout:fixed;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:15px;
+  }
+  table.xl-table thead th{
+    position:sticky; top:0; z-index:2;
+    background:#EDE6D3;
+    border-bottom:2px solid var(--rule);
+    border-right:1px solid var(--rule);
+    padding:8px 6px;
+    text-align:left;
+    font-size:11.5px;
+    color: var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+    white-space:nowrap;
+  }
+  table.xl-table tbody td{
+    border-bottom:1px solid var(--rule);
+    border-right:1px solid var(--rule);
+    padding:4px;
+    background:#fff;
+  }
+  table.xl-table tbody tr:nth-child(even) td{ background: var(--paper-row); }
+  table.xl-table td.xl-sr{
+    text-align:center; color: var(--ink-soft); font-size:13px;
+    min-width:28px; background:#F6F2E4 !important;
+  }
+  table.xl-table input{
+    width:100%;
+    border:1px solid transparent;
+    border-radius:4px;
+    padding:9px 6px;
+    font-family:inherit;
+    font-size:15px;
+    background:transparent;
+    color: var(--ink);
+    outline:none;
+  }
+  table.xl-table input:focus{
+    border-color: var(--seal);
+    background:#fff;
+    box-shadow: 0 0 0 2px rgba(140,47,27,0.12);
+  }
+  table.xl-table td.xl-price input, table.xl-table td.xl-qty input{ text-align:right; padding-left:2px; padding-right:2px; }
+  table.xl-table td.xl-name input{ padding-left:5px; }
+  .xl-toolbar{
+    display:flex; justify-content:space-between; align-items:center;
+    gap:10px; margin-top:12px; flex-wrap:wrap;
+  }
+  .xl-add-row-btn{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px; font-weight:600;
+    padding:9px 14px;
+    border-radius:8px;
+    border:1.5px dashed var(--rule);
+    background:transparent;
+    color: var(--ink-soft);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .xl-save-group{ display:flex; gap:8px; flex:1; justify-content:flex-end; }
+  .xl-hint{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px; color: var(--ink-soft);
+    margin-top:8px;
+  }
+
   @media (prefers-reduced-motion: reduce){
     *{ animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
@@ -630,6 +710,7 @@
       <button class="icon-btn" id="selectModeBtn" title="Items Select કરો">☑</button>
       <button class="icon-btn" id="orderBtn" title="Estimate">🧾</button>
       <button class="icon-btn" id="analysisBtn" title="Stock Analysis">📊</button>
+      <button class="icon-btn" id="sheetEditBtn" title="Sheet Edit (Excel જેમ)">📋</button>
       <div class="stack-btns">
         <button class="icon-btn small" id="exportBtn" title="Export">EX</button>
         <button class="icon-btn small" id="importBtn" title="Import (JSON અથવા Excel Sync)">IN</button>
@@ -771,6 +852,38 @@
     </div>
     <div class="analysis-total" id="analysisGrandTotal"></div>
     <div id="analysisRows" style="max-height:56vh; overflow-y:auto; margin-top:8px;"></div>
+  </div>
+</div>
+
+<div class="overlay" id="sheetOverlay">
+  <div class="sheet" style="max-width:760px; margin:0 auto;">
+    <h2><span id="sheetEditTitleText">Sheet Edit</span> <button class="close-x" id="sheetCloseX">×</button></h2>
+    <div class="xl-table-wrap">
+      <table class="xl-table" id="sheetTable">
+        <colgroup>
+          <col style="width:11%">
+          <col style="width:47%">
+          <col style="width:19%">
+          <col style="width:23%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Sr</th>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Qty</th>
+          </tr>
+        </thead>
+        <tbody id="sheetTableBody"></tbody>
+      </table>
+    </div>
+    <div class="xl-toolbar">
+      <button class="xl-add-row-btn" id="sheetAddRowBtn">+ Row ઉમેરો</button>
+      <div class="xl-save-group">
+        <button class="btn-cancel btn" id="sheetCancelBtn" style="flex:0 0 auto;">રદ</button>
+        <button class="btn-save btn" id="sheetSaveBtn" style="flex:0 0 auto;">બધું Save કરો</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1825,6 +1938,140 @@ function renderAnalysis(){
     </div>
   `).join('');
 }
+/* SHEET EDIT (Excel-like inline bulk edit for the active company) */
+let sheetWorking = []; // working copy of rows currently in the sheet editor
+
+function openSheetEdit(){
+  if(!activeCompanyFilter){
+    showToast('પહેલા ઉપર company chip પસંદ કરો');
+    return;
+  }
+  sheetWorking = ITEMS.filter(i => i.company === activeCompanyFilter).map(i => ({ ...i }));
+  el('sheetEditTitleText').textContent = 'Sheet Edit — ' + activeCompanyFilter;
+  renderSheetTable();
+  el('sheetOverlay').classList.add('show');
+}
+
+function closeSheetEdit(){
+  el('sheetOverlay').classList.remove('show');
+  sheetWorking = [];
+}
+
+function renderSheetTable(){
+  const tbody = el('sheetTableBody');
+  if(sheetWorking.length === 0){
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--ink-soft);">કોઈ item નથી — નીચે "+ Row ઉમેરો" દબાવો</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sheetWorking.map((item, i) => `
+    <tr data-row="${i}">
+      <td class="xl-sr">${i + 1}</td>
+      <td class="xl-name"><input type="text" data-field="name" data-row="${i}" value="${escapeHtml(item.name || '')}"></td>
+      <td class="xl-price"><input type="text" inputmode="decimal" pattern="[0-9]*\\.?[0-9]*" data-field="price" data-row="${i}" value="${item.price === '' || item.price === undefined ? '' : item.price}"></td>
+      <td class="xl-qty"><input type="text" inputmode="decimal" pattern="[0-9]*\\.?[0-9]*" data-field="qty" data-row="${i}" value="${item.qty === '' || item.qty === undefined ? '' : item.qty}"></td>
+    </tr>
+  `).join('');
+
+  tbody.querySelectorAll('input[data-field]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const row = parseInt(inp.dataset.row);
+      const field = inp.dataset.field;
+      if(!sheetWorking[row]) return;
+      if(field === 'price' || field === 'qty'){
+        let raw = inp.value.replace(/[^0-9.]/g, '');
+        const firstDot = raw.indexOf('.');
+        if(firstDot !== -1) raw = raw.slice(0, firstDot + 1) + raw.slice(firstDot + 1).replace(/\./g, '');
+        if(raw !== inp.value) inp.value = raw;
+        let num = raw === '' || raw === '.' ? '' : Number(raw);
+        if(num !== '' && !isNaN(num) && num > 9999){
+          num = 9999;
+          inp.value = '9999';
+        }
+        sheetWorking[row][field] = num;
+      } else {
+        sheetWorking[row][field] = inp.value;
+      }
+    });
+  });
+}
+
+const SHEET_FIELDS = ['name', 'price', 'qty'];
+function focusSheetCell(row, field){
+  if(row < 0 || row >= sheetWorking.length) return;
+  const inp = el('sheetTableBody').querySelector(`input[data-row="${row}"][data-field="${field}"]`);
+  if(inp){ inp.focus(); }
+}
+
+function addSheetRow(){
+  sheetWorking.push({ sr: sheetWorking.length + 1, company: activeCompanyFilter, label: '', name: '', price: '', qty: '' });
+  renderSheetTable();
+  const wrap = el('sheetTable').closest('.xl-table-wrap');
+  wrap.scrollTop = wrap.scrollHeight;
+  setTimeout(() => {
+    const lastInput = tbodyLastNameInput();
+    if(lastInput) lastInput.focus();
+  }, 30);
+}
+function tbodyLastNameInput(){
+  const inputs = el('sheetTableBody').querySelectorAll('input[data-field="name"]');
+  return inputs.length ? inputs[inputs.length - 1] : null;
+}
+
+function saveSheetEdit(){
+  if(!activeCompanyFilter) return;
+  const cleaned = sheetWorking.filter(r => (r.name || '').trim() !== '');
+  ITEMS = ITEMS.filter(i => i.company !== activeCompanyFilter);
+  cleaned.forEach((r, i) => {
+    ITEMS.push({
+      sr: i + 1,
+      company: activeCompanyFilter,
+      label: r.label || '',
+      name: r.name,
+      price: r.price === '' ? '' : Number(r.price),
+      qty: r.qty === '' ? '' : Number(r.qty)
+    });
+  });
+  saveItems();
+  showToast('Sheet save થઈ');
+  closeSheetEdit();
+  renderChips();
+  renderResults();
+}
+
+el('sheetEditBtn').addEventListener('click', openSheetEdit);
+el('sheetCloseX').addEventListener('click', closeSheetEdit);
+el('sheetCancelBtn').addEventListener('click', closeSheetEdit);
+el('sheetOverlay').addEventListener('click', (e) => { if(e.target.id === 'sheetOverlay') closeSheetEdit(); });
+el('sheetAddRowBtn').addEventListener('click', addSheetRow);
+el('sheetSaveBtn').addEventListener('click', saveSheetEdit);
+
+/* Excel-style: tap a cell selects its whole value so typing replaces it directly */
+el('sheetTableBody').addEventListener('focusin', (e) => {
+  if(e.target.matches('input[data-field]')){
+    const inp = e.target;
+    setTimeout(() => { try{ inp.select(); }catch(err){} }, 0);
+  }
+});
+
+/* Enter key: commit this cell and jump straight to the same field on the next row (e.g. Qty -> next Qty).
+   Handled on both keydown and keyup since some Android keyboards only fire one of the two for the
+   "Next/Go" action key on text inputs. The forced re-focus after a tick guards against the keyboard's
+   own "next" action trying to jump to whatever the next field in the page is. */
+function handleSheetEnterKey(e){
+  const t = e.target;
+  if(!t.matches('input[data-field]')) return;
+  if(e.key === 'Enter' || e.keyCode === 13){
+    e.preventDefault();
+    e.stopPropagation();
+    const row = parseInt(t.dataset.row);
+    const field = t.dataset.field;
+    focusSheetCell(row + 1, field);
+    setTimeout(() => { focusSheetCell(row + 1, field); }, 0);
+  }
+}
+el('sheetTableBody').addEventListener('keydown', handleSheetEnterKey);
+el('sheetTableBody').addEventListener('keyup', handleSheetEnterKey);
+
 el('selectShareBtn').addEventListener('click', () => {
   if(selectedIdx.size === 0) return;
   const items = Array.from(selectedIdx).sort((a,b)=>a-b).map(i => ITEMS[i]).filter(Boolean);
