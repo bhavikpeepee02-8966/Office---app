@@ -343,6 +343,8 @@
     padding: 18px 18px 24px;
     animation: slideUp .22s ease-out;
   }
+  #customConfirmOverlay{ align-items:flex-start; justify-content:center; z-index:200; padding:20px; padding-top:18vh; }
+  #customConfirmOverlay .sheet{ width:100%; max-width:360px; border-radius:16px; border-top:4px solid #B3261E; margin:0; }
   @keyframes slideUp{ from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;} }
   .sheet h2{
     font-family:'Special Elite',monospace;
@@ -886,6 +888,17 @@
     </div>
     <div class="analysis-total" id="analysisGrandTotal"></div>
     <div id="analysisRows" style="max-height:56vh; overflow-y:auto; margin-top:8px;"></div>
+  </div>
+</div>
+
+<div class="overlay" id="customConfirmOverlay">
+  <div class="sheet" style="max-height:50vh; padding-top:20px;">
+    <h2 style="color:#B3261E; font-size:19px; margin-bottom:14px;">⚠️ Warning</h2>
+    <div id="customConfirmMsg" style="font-size:17px; line-height:1.55; margin-bottom:22px; color:var(--ink); white-space:pre-line;"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-cancel" id="customConfirmCancel">રદ કરો</button>
+      <button class="btn" id="customConfirmOk" style="background:#B3261E; color:#fff;">હા, આગળ વધો</button>
+    </div>
   </div>
 </div>
 
@@ -1746,19 +1759,20 @@ function renderSelectBar(){
 function deleteSelected(){
   if(selectedIdx.size === 0) return;
   const count = selectedIdx.size;
-  const ok = confirm(count + ' item ડિલીટ કરવા છે? આ પાછું નહીં આવે.');
-  if(!ok) return;
-  Array.from(selectedIdx).sort((a, b) => b - a).forEach(i => ITEMS.splice(i, 1));
-  saveItems();
-  selectMode = false;
-  selectedIdx.clear();
-  el('selectModeBtn').classList.remove('active-select');
-  el('addFab').style.display = 'flex';
-  renderChips();
-  updateCompanyDatalist();
-  renderResults();
-  renderSelectBar();
-  showToast(count + ' item ડિલીટ થયા');
+  customConfirm(count + ' item ડિલીટ કરવા છે?\nઆ પાછું નહીં આવે.').then(ok => {
+    if(!ok) return;
+    Array.from(selectedIdx).sort((a, b) => b - a).forEach(i => ITEMS.splice(i, 1));
+    saveItems();
+    selectMode = false;
+    selectedIdx.clear();
+    el('selectModeBtn').classList.remove('active-select');
+    el('addFab').style.display = 'flex';
+    renderChips();
+    updateCompanyDatalist();
+    renderResults();
+    renderSelectBar();
+    showToast(count + ' item ડિલીટ થયા');
+  });
 }
 
 function escapeHtml(s){
@@ -2033,6 +2047,24 @@ async function doShareSheetEditWhatsApp(){
 }
 el('sheetShareBtn').addEventListener('click', doShareSheetEditWhatsApp);
 
+/* CUSTOM CONFIRM (styled warning popup, replaces browser confirm) */
+function customConfirm(message){
+  return new Promise((resolve) => {
+    el('customConfirmMsg').textContent = message;
+    el('customConfirmOverlay').classList.add('show');
+    function cleanup(result){
+      el('customConfirmOverlay').classList.remove('show');
+      el('customConfirmOk').removeEventListener('click', onOk);
+      el('customConfirmCancel').removeEventListener('click', onCancel);
+      resolve(result);
+    }
+    function onOk(){ cleanup(true); }
+    function onCancel(){ cleanup(false); }
+    el('customConfirmOk').addEventListener('click', onOk);
+    el('customConfirmCancel').addEventListener('click', onCancel);
+  });
+}
+
 /* SHEET EDIT (Excel-like inline bulk edit for the active company) */
 let sheetWorking = []; // working copy of rows currently in the sheet editor
 let sheetActiveRow = null; // row index selected via tapping its SR number, used for "+ Row ઉમેરો" position and delete
@@ -2139,12 +2171,13 @@ function deleteSheetActiveRow(){
     return;
   }
   const item = sheetWorking[sheetActiveRow];
-  const ok = confirm((item.name ? item.name : 'આ row') + ' ડિલીટ કરવી છે? આ પાછું નહીં આવે.');
-  if(!ok) return;
-  sheetWorking.splice(sheetActiveRow, 1);
-  sheetActiveRow = null;
-  renderSheetTable();
-  showToast('Row કાઢી નાખી');
+  customConfirm((item.name ? item.name : 'આ row') + ' ડિલીટ કરવી છે?\nઆ પાછું નહીં આવે.').then(ok => {
+    if(!ok) return;
+    sheetWorking.splice(sheetActiveRow, 1);
+    sheetActiveRow = null;
+    renderSheetTable();
+    showToast('Row કાઢી નાખી');
+  });
 }
 
 function saveSheetEdit(){
@@ -2269,8 +2302,9 @@ el('importFile').addEventListener('change', (e) => {
   const file = e.target.files && e.target.files[0];
   if(file){
     if(/\.xlsx$/i.test(file.name)){
-      const ok = confirm('Excel ફાઈલ પ્રમાણે Name, Price, Qty બધું overwrite થઈ જશે. App માં રહેલું બધું Excel File મુજબ થઈ જશે.\n\nઆગળ વધવું છે?');
-      if(ok) importExcelSync(file);
+      customConfirm('Excel ફાઈલ પ્રમાણે Name, Price, Qty બધું overwrite થઈ જશે.\nApp માં રહેલું બધું Excel File મુજબ થઈ જશે.').then(ok => {
+        if(ok) importExcelSync(file);
+      });
     } else {
       importData(file);
     }
