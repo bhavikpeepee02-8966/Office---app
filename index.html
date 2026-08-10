@@ -2269,7 +2269,8 @@ el('importFile').addEventListener('change', (e) => {
   const file = e.target.files && e.target.files[0];
   if(file){
     if(/\.xlsx$/i.test(file.name)){
-      importExcelSync(file);
+      const ok = confirm('Excel ફાઈલ પ્રમાણે Name, Price, Qty બધું overwrite થઈ જશે. App માં રહેલું બધું Excel File મુજબ થઈ જશે.\n\nઆગળ વધવું છે?');
+      if(ok) importExcelSync(file);
     } else {
       importData(file);
     }
