@@ -2344,6 +2344,13 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(() => {});
   });
 }
+
+// Request persistent storage so Android doesn't evict the offline cache overnight
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().then((granted) => {
+    console.log('Persistent storage granted:', granted);
+  });
+}
 </script>
 </body>
 </html>
