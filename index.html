@@ -748,11 +748,12 @@
       <button class="icon-btn" id="analysisBtn" title="Stock Analysis">📊</button>
       <button class="icon-btn" id="sheetEditBtn" title="Sheet Edit (Excel જેમ)">📋</button>
       <div class="stack-btns">
-        <button class="icon-btn small" id="exportBtn" title="Export">EX</button>
-        <button class="icon-btn small" id="importBtn" title="Import (JSON અથવા Excel Sync)">IN</button>
+        <button class="icon-btn small" id="exportBtn" title="Excel Export">EX</button>
+        <button class="icon-btn small" id="importBtn" title="Excel Sync">IN</button>
       </div>
       <button class="icon-btn" id="fontToggleBtn" title="Font સાઈઝ">Aa</button>
-      <input type="file" id="importFile" accept="application/json,.json,.xlsx" style="display:none;">
+      <button class="icon-btn" id="syncBtn" title="GitHub Cloud Sync">☁️</button>
+      <input type="file" id="importFile" accept=".xlsx" style="display:none;">
     </div>
   </div>
   <div class="search-wrap">
@@ -934,27 +935,6 @@
   </div>
 </div>
 
-<div class="overlay" id="importChoiceOverlay">
-  <div class="sheet">
-    <h2>Import <button class="close-x" id="importChoiceCloseX">×</button></h2>
-    <div style="display:flex; flex-direction:column; gap:10px; padding:4px 0 16px;">
-      <button class="btn-save btn" id="importChoiceJSON" style="width:100%;">📄 JSON (Backup Restore)</button>
-      <button class="btn-save btn" id="importChoiceExcelSync" style="width:100%;">🔄 Excel Sync</button>
-    </div>
-  </div>
-</div>
-
-<div class="overlay" id="exportChoiceOverlay">
-  <div class="sheet">
-    <h2>Export <button class="close-x" id="exportChoiceCloseX">×</button></h2>
-    <div style="display:flex; flex-direction:column; gap:10px; padding:4px 0 16px;">
-      <button class="btn-save btn" id="exportChoiceJSON" style="width:100%;">📄 JSON Backup</button>
-      <button class="btn-save btn" id="exportChoiceExcel" style="width:100%;">📊 Excel Export</button>
-      <button class="btn-save btn" id="exportChoiceBoth" style="width:100%;">📦 બંને (JSON + Excel)</button>
-    </div>
-  </div>
-</div>
-
 <div class="overlay" id="excelOverlay">
   <div class="sheet">
     <h2>Excel Export <button class="close-x" id="excelCloseX">×</button></h2>
@@ -967,6 +947,26 @@
       <button class="btn-cancel btn" id="excelCancelBtn">રદ</button>
       <button class="btn-save btn" id="excelDownloadBtn">⬇ Download</button>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="syncOverlay">
+  <div class="sheet" style="max-width:480px; margin:0 auto;">
+    <h2>☁️ GitHub Cloud Sync <button class="close-x" id="syncCloseX">×</button></h2>
+    <p style="font-size:12px; color:var(--ink-soft); line-height:1.5; margin:0 0 12px;">ડેટા તમારા private GitHub repo માં જાય છે. Chrome cache/data clear થાય તો પણ અહીંથી પાછો મેળવી શકાશે. એકવાર ભરીને "Save" કરો — પછી કોઈ પણ ડેટા બદલાય એટલે થોડી સેકન્ડમાં આપોઆપ sync થઈ જશે.</p>
+    <label style="font-size:11px; color:var(--ink-soft); display:block; margin:8px 0 3px;">GitHub Username</label>
+    <input type="text" id="ghOwner" placeholder="દા.ત. bhavikpeepee02-8966" style="width:100%; padding:9px 10px; border:1px solid var(--rule); border-radius:8px; font-size:14px; box-sizing:border-box;">
+    <label style="font-size:11px; color:var(--ink-soft); display:block; margin:8px 0 3px;">Repo નામ</label>
+    <input type="text" id="ghRepo" placeholder="દા.ત. Bvkdatabkp" style="width:100%; padding:9px 10px; border:1px solid var(--rule); border-radius:8px; font-size:14px; box-sizing:border-box;">
+    <label style="font-size:11px; color:var(--ink-soft); display:block; margin:8px 0 3px;">Personal Access Token</label>
+    <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxx" style="width:100%; padding:9px 10px; border:1px solid var(--rule); border-radius:8px; font-size:14px; box-sizing:border-box;">
+    <label style="font-size:11px; color:var(--ink-soft); display:block; margin:8px 0 3px;">ફાઈલ નામ (repo માં)</label>
+    <input type="text" id="ghPath" placeholder="stock-app.json" style="width:100%; padding:9px 10px; border:1px solid var(--rule); border-radius:8px; font-size:14px; box-sizing:border-box;">
+    <div class="sheet-actions" style="margin-top:12px;">
+      <button class="btn-cancel btn" id="ghRestoreBtn">⬇️ Restore</button>
+      <button class="btn-save btn" id="ghSaveBtn">⬆️ Cloud Save</button>
+    </div>
+    <p id="ghSyncStatus" style="font-size:12px; margin-top:10px; min-height:1.2em;"></p>
   </div>
 </div>
 
@@ -1043,44 +1043,6 @@ function resetToDefaultItems(){
   renderChips();
   renderResults();
   showToast('Default data પર reset થયું');
-}
-
-function exportData(){
-  try{
-    const blob = new Blob([JSON.stringify(ITEMS, null, 2)], {type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const stamp = new Date().toISOString().slice(0,10);
-    a.download = 'stock-' + stamp + '.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    showToast('Export થયું — file save કરો');
-  }catch(e){
-    showToast('Export ન થયું: ' + ((e && e.message) || e));
-  }
-}
-
-function importData(file){
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try{
-      const data = JSON.parse(e.target.result);
-      if(!Array.isArray(data)) throw new Error('file માં items list નથી');
-      ITEMS = data;
-      activeCompanyFilter = null;
-      saveItems();
-      renderChips();
-      renderResults();
-      showToast('Import થયું — ' + ITEMS.length + ' items');
-    }catch(err){
-      showToast('Import ન થયું: ' + ((err && err.message) || err));
-    }
-  };
-  reader.onerror = () => showToast('File વાંચવામાં ભૂલ');
-  reader.readAsText(file);
 }
 
 async function importExcelData(file){
@@ -1468,14 +1430,6 @@ async function exportItemsToExcel(items, fileNamePrefix, shareTitle){
   }catch(e){
     showToast('Excel export ન થયું: ' + ((e && e.message) || e));
   }
-}
-
-function openExportChoice(){
-  el('exportChoiceOverlay').classList.add('show');
-}
-
-function closeExportChoice(){
-  el('exportChoiceOverlay').classList.remove('show');
 }
 
 function exportExcel(){
@@ -1920,12 +1874,7 @@ el('addFab').addEventListener('click', openAddSheet);
     try{ localStorage.setItem('officeAppFontSize', next); }catch(e){}
   });
 })();
-el('exportBtn').addEventListener('click', openExportChoice);
-el('exportChoiceCloseX').addEventListener('click', closeExportChoice);
-el('exportChoiceOverlay').addEventListener('click', (e) => { if(e.target.id === 'exportChoiceOverlay') closeExportChoice(); });
-el('exportChoiceJSON').addEventListener('click', () => { closeExportChoice(); exportData(); });
-el('exportChoiceExcel').addEventListener('click', () => { closeExportChoice(); openExcelPicker(); });
-el('exportChoiceBoth').addEventListener('click', () => { closeExportChoice(); exportData(); setTimeout(() => openExcelPicker(), 600); });
+el('exportBtn').addEventListener('click', openExcelPicker);
 el('excelCloseX').addEventListener('click', closeExcelPicker);
 el('excelCancelBtn').addEventListener('click', closeExcelPicker);
 el('excelOverlay').addEventListener('click', (e) => { if(e.target.id === 'excelOverlay') closeExcelPicker(); });
@@ -2277,37 +2226,16 @@ el('selectCancelBtn').addEventListener('click', () => {
   renderResults();
   renderSelectBar();
 });
-let importMode = 'update';
-function openImportChoice(){
-  el('importChoiceOverlay').classList.add('show');
-}
-function closeImportChoice(){
-  el('importChoiceOverlay').classList.remove('show');
-}
-el('importBtn').addEventListener('click', openImportChoice);
-el('importChoiceCloseX').addEventListener('click', closeImportChoice);
-el('importChoiceOverlay').addEventListener('click', (e) => { if(e.target.id === 'importChoiceOverlay') closeImportChoice(); });
-el('importChoiceJSON').addEventListener('click', () => {
-  closeImportChoice();
-  el('importFile').setAttribute('accept', 'application/json,.json');
-  el('importFile').click();
-});
-el('importChoiceExcelSync').addEventListener('click', () => {
-  closeImportChoice();
-  importMode = 'sync';
+el('importBtn').addEventListener('click', () => {
   el('importFile').setAttribute('accept', '.xlsx');
   el('importFile').click();
 });
 el('importFile').addEventListener('change', (e) => {
   const file = e.target.files && e.target.files[0];
   if(file){
-    if(/\.xlsx$/i.test(file.name)){
-      customConfirm('Excel ફાઈલ પ્રમાણે Name, Price, Qty બધું overwrite થઈ જશે.\nApp માં રહેલું બધું Excel File મુજબ થઈ જશે.').then(ok => {
-        if(ok) importExcelSync(file);
-      });
-    } else {
-      importData(file);
-    }
+    customConfirm('Excel ફાઈલ પ્રમાણે Name, Price, Qty બધું overwrite થઈ જશે.\nApp માં રહેલું બધું Excel File મુજબ થઈ જશે.').then(ok => {
+      if(ok) importExcelSync(file);
+    });
   }
   e.target.value = '';
 });
@@ -2351,6 +2279,129 @@ if (navigator.storage && navigator.storage.persist) {
     console.log('Persistent storage granted:', granted);
   });
 }
+
+// ================= Backup: GitHub Cloud Sync (Automatic) =================
+const BACKUP_KEYS = ['stockAppItemsV1'];
+const GH_DEFAULTS = { owner:'bhavikpeepee02-8966', repo:'Bvkdatabkp', token:'', path:'stock-app.json' };
+const GH_SETTINGS_KEY = 'ghSyncSettingsV1_' + GH_DEFAULTS.path;
+
+function collectAllData(){
+  const out = {};
+  BACKUP_KEYS.forEach(k=>{
+    const v = localStorage.getItem(k);
+    if(v !== null) out[k] = v;
+  });
+  return out;
+}
+function restoreAllData(obj){
+  BACKUP_KEYS.forEach(k=>{
+    if(obj[k] !== undefined) localStorage.setItem(k, obj[k]);
+    else localStorage.removeItem(k);
+  });
+}
+function loadGhSettings(){
+  try{ return JSON.parse(localStorage.getItem(GH_SETTINGS_KEY)) || {}; }catch(e){ return {}; }
+}
+function saveGhSettings(s){ localStorage.setItem(GH_SETTINGS_KEY, JSON.stringify(s)); }
+
+const ghOwnerInput = document.getElementById('ghOwner');
+const ghRepoInput = document.getElementById('ghRepo');
+const ghTokenInput = document.getElementById('ghToken');
+const ghPathInput = document.getElementById('ghPath');
+const ghSyncStatus = document.getElementById('ghSyncStatus');
+
+(function initGhFields(){
+  const s = loadGhSettings();
+  ghOwnerInput.value = s.owner || GH_DEFAULTS.owner;
+  ghRepoInput.value = s.repo || GH_DEFAULTS.repo;
+  ghTokenInput.value = s.token || GH_DEFAULTS.token;
+  ghPathInput.value = GH_DEFAULTS.path;
+})();
+
+function currentGhConfig(){
+  return {
+    owner: ghOwnerInput.value.trim(),
+    repo: ghRepoInput.value.trim(),
+    token: ghTokenInput.value.trim(),
+    path: (ghPathInput.value.trim() || GH_DEFAULTS.path)
+  };
+}
+function setGhStatus(msg, ok){
+  ghSyncStatus.textContent = msg;
+  ghSyncStatus.style.color = ok===true ? 'var(--green)' : (ok===false ? 'var(--seal)' : 'var(--ink-soft)');
+}
+
+async function pushToCloud(silent){
+  const cfg = currentGhConfig();
+  if(!cfg.owner || !cfg.repo || !cfg.token || !cfg.path){ if(!silent) setGhStatus('❌ Username, Repo, Token અને ફાઈલ નામ ભરવું જરૂરી છે.', false); return; }
+  saveGhSettings({ owner:cfg.owner, repo:cfg.repo, token:cfg.token, path:cfg.path });
+  if(!silent) setGhStatus('⏳ Save થઈ રહ્યું છે...');
+  try{
+    const dataStr = JSON.stringify(collectAllData());
+    const apiUrl = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(cfg.path)}`;
+    let sha = undefined;
+    const getRes = await fetch(apiUrl, { headers:{ 'Authorization':`token ${cfg.token}`, 'Accept':'application/vnd.github+json' } });
+    if(getRes.status === 200){ const getJson = await getRes.json(); sha = getJson.sha; }
+    else if(getRes.status !== 404){ throw new Error('GitHub read error: '+getRes.status); }
+    const putRes = await fetch(apiUrl, {
+      method:'PUT',
+      headers:{ 'Authorization':`token ${cfg.token}`, 'Accept':'application/vnd.github+json', 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        message: 'Auto backup ' + new Date().toISOString(),
+        content: btoa(unescape(encodeURIComponent(dataStr))),
+        sha
+      })
+    });
+    if(!putRes.ok){ const t = await putRes.text(); throw new Error('GitHub save error: '+putRes.status+' '+t.slice(0,150)); }
+    setGhStatus('✅ Auto-sync થઈ ગયું ('+new Date().toLocaleString('gu-IN')+')', true);
+  }catch(err){
+    setGhStatus('❌ Auto-sync નિષ્ફળ: '+err.message, false);
+  }
+}
+document.getElementById('ghSaveBtn').addEventListener('click', ()=> pushToCloud(false));
+
+let autoSyncTimer = null;
+function scheduleAutoSync(){
+  const s = loadGhSettings();
+  if(!s.owner || !s.repo || !s.token || !s.path) return;
+  clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(()=> pushToCloud(true), 4000);
+}
+(function watchLocalStorageForAutoSync(){
+  const origSetItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = function(key, value){
+    origSetItem(key, value);
+    if(BACKUP_KEYS.indexOf(key) !== -1) scheduleAutoSync();
+  };
+})();
+
+document.getElementById('ghRestoreBtn').addEventListener('click', async ()=>{
+  const cfg = currentGhConfig();
+  if(!cfg.owner || !cfg.repo || !cfg.token || !cfg.path){ setGhStatus('❌ Username, Repo, Token અને ફાઈલ નામ ભરવું જરૂરી છે.', false); return; }
+  if(!confirm('Cloud માંથી Restore કરવાથી આ ફોન પરનો હાલનો ડેટા બદલાઈ જશે. આગળ વધવું છે?')) return;
+  saveGhSettings({ owner:cfg.owner, repo:cfg.repo, token:cfg.token, path:cfg.path });
+  setGhStatus('⏳ Restore થઈ રહ્યું છે...');
+  try{
+    const apiUrl = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(cfg.path)}`;
+    const getRes = await fetch(apiUrl, { headers:{ 'Authorization':`token ${cfg.token}`, 'Accept':'application/vnd.github+json' } });
+    if(getRes.status === 404){ setGhStatus('❌ Cloud પર હજુ કોઈ backup ફાઈલ નથી — પહેલા "Save" કરો.', false); return; }
+    if(!getRes.ok){ throw new Error('GitHub read error: '+getRes.status); }
+    const getJson = await getRes.json();
+    const dataStr = decodeURIComponent(escape(atob(getJson.content.replace(/\n/g,''))));
+    let plainObj;
+    try{ plainObj = JSON.parse(dataStr); }
+    catch(e){ setGhStatus('❌ Cloud પરનો ડેટા વાંચી ના શકાયો.', false); return; }
+    restoreAllData(plainObj);
+    setGhStatus('✅ Restore થઈ ગયું — પેજ ફરી લોડ થાય છે...', true);
+    setTimeout(()=>location.reload(), 900);
+  }catch(err){
+    setGhStatus('❌ Restore નિષ્ફળ: '+err.message, false);
+  }
+});
+
+document.getElementById('syncBtn').addEventListener('click', ()=> document.getElementById('syncOverlay').classList.add('show'));
+document.getElementById('syncCloseX').addEventListener('click', ()=> document.getElementById('syncOverlay').classList.remove('show'));
+document.getElementById('syncOverlay').addEventListener('click', (e)=>{ if(e.target.id==='syncOverlay') document.getElementById('syncOverlay').classList.remove('show'); });
 </script>
 </body>
 </html>
