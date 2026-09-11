@@ -71,11 +71,12 @@
     padding: calc(14px + env(safe-area-inset-top)) 16px 10px;
   }
   .brand-row{
-    display:flex; align-items:center; justify-content:flex-start; gap:14px;
+    display:flex; align-items:center; justify-content:flex-start; gap:8px;
     margin-bottom:12px;
   }
   .brand{
     display:flex; flex-direction:column; align-items:flex-start; gap:5px;
+    flex-shrink:0;
   }
   .brand h1{
     font-family:'Special Elite',monospace;
@@ -103,25 +104,32 @@
     align-self:flex-start;
   }
   .header-actions{
-    display:flex; align-items:center; gap:6px;
+    display:flex; align-items:center; gap:4px;
+    overflow-x:auto; overflow-y:hidden;
+    scrollbar-width:none; -ms-overflow-style:none;
+    -webkit-overflow-scrolling:touch;
+    min-width:0;
   }
+  .header-actions::-webkit-scrollbar{ display:none; }
   .stack-btns{
-    display:flex; flex-direction:column; gap:4px;
+    display:flex; flex-direction:column; gap:3px;
+    flex-shrink:0;
   }
   .icon-btn{
-    width:34px; height:34px;
+    width:30px; height:30px;
     border-radius:8px;
     border: 1.5px solid var(--rule);
     background: #FBF8EF;
     color: var(--ink);
-    font-size:16px;
+    font-size:14px;
     display:flex; align-items:center; justify-content:center;
     cursor:pointer;
+    flex-shrink:0;
   }
   .icon-btn.small{
-    width:34px; height:17px;
+    width:30px; height:15px;
     border-radius:5px;
-    font-size:10px;
+    font-size:9px;
     font-weight:700;
     letter-spacing:0.3px;
   }
@@ -947,6 +955,9 @@
       <button class="btn-cancel btn" id="excelCancelBtn">રદ</button>
       <button class="btn-save btn" id="excelDownloadBtn">⬇ Download</button>
     </div>
+    <div class="sheet-actions" style="margin-top:10px;">
+      <button class="btn" id="jsonBackupBtn" style="background:#3E6B57; color:#fff;">📦 JSON Backup (પૂરું ડેટા)</button>
+    </div>
   </div>
 </div>
 
@@ -1174,6 +1185,34 @@ async function importExcelSync(file){
     showToast(companiesTouched.size + ' company sync થઈ');
   }catch(e){
     showToast('Excel Sync ન થયું: ' + ((e && e.message) || e));
+  }
+}
+
+async function importJSONBackup(file){
+  showToast('JSON Restore થાય છે...');
+  try{
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if(!Array.isArray(parsed) || parsed.length === 0){
+      showToast('JSON ફાઈલમાં valid items નથી');
+      return;
+    }
+    const clean = parsed.map((i, idx) => ({
+      sr: i.sr || (idx + 1),
+      company: i.company || 'MISC',
+      label: i.label || '',
+      name: i.name || '',
+      price: (i.price === '' || i.price === undefined || i.price === null || isNaN(Number(i.price))) ? '' : Number(i.price),
+      qty: (i.qty === '' || i.qty === undefined || i.qty === null || isNaN(Number(i.qty))) ? '' : Number(i.qty)
+    })).filter(i => i.name);
+    if(clean.length === 0){ showToast('JSON ફાઈલમાં valid items નથી'); return; }
+    ITEMS = clean;
+    saveItems();
+    renderChips();
+    renderResults();
+    showToast(clean.length + ' items JSON થી restore થયા');
+  }catch(e){
+    showToast('JSON Restore ન થયું: ' + ((e && e.message) || e));
   }
 }
 
@@ -1434,6 +1473,42 @@ async function exportItemsToExcel(items, fileNamePrefix, shareTitle){
 
 function exportExcel(){
   exportItemsToExcel(ITEMS, 'stock', 'Stock Excel');
+}
+
+async function exportItemsToJSON(items, fileNamePrefix, shareTitle){
+  if(!items || items.length === 0){ showToast('Items નથી'); return; }
+  showToast('JSON બનાવાય છે...');
+  try{
+    const stamp = new Date().toISOString().slice(0,10);
+    const fileName = fileNamePrefix + '-' + stamp + '.json';
+    const jsonStr = JSON.stringify(items, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const file = new File([blob], fileName, { type: 'application/json' });
+    if(navigator.share && navigator.canShare && navigator.canShare({ files: [file] })){
+      try{
+        await navigator.share({ files: [file], title: shareTitle || 'Stock JSON Backup' });
+        return;
+      }catch(shareErr){
+        // user cancelled share sheet — fall through to download
+      }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    showToast('JSON Backup save થયું');
+  }catch(e){
+    showToast('JSON Backup ન થયું: ' + ((e && e.message) || e));
+  }
+}
+
+function doJSONBackup(){
+  closeExcelPicker();
+  exportItemsToJSON(ITEMS, 'stock-backup', 'Stock JSON Backup');
 }
 
 function openExcelPicker(){
@@ -1879,6 +1954,7 @@ el('excelCloseX').addEventListener('click', closeExcelPicker);
 el('excelCancelBtn').addEventListener('click', closeExcelPicker);
 el('excelOverlay').addEventListener('click', (e) => { if(e.target.id === 'excelOverlay') closeExcelPicker(); });
 el('excelDownloadBtn').addEventListener('click', doExcelDownload);
+el('jsonBackupBtn').addEventListener('click', doJSONBackup);
 el('excelSelectAll').addEventListener('change', () => {
   const checked = el('excelSelectAll').checked;
   document.querySelectorAll('.excel-co-check').forEach(b => { b.checked = checked; });
@@ -2227,15 +2303,22 @@ el('selectCancelBtn').addEventListener('click', () => {
   renderSelectBar();
 });
 el('importBtn').addEventListener('click', () => {
-  el('importFile').setAttribute('accept', '.xlsx');
+  el('importFile').setAttribute('accept', '.xlsx,.json');
   el('importFile').click();
 });
 el('importFile').addEventListener('change', (e) => {
   const file = e.target.files && e.target.files[0];
   if(file){
-    customConfirm('Excel ફાઈલ પ્રમાણે Name, Price, Qty બધું overwrite થઈ જશે.\nApp માં રહેલું બધું Excel File મુજબ થઈ જશે.').then(ok => {
-      if(ok) importExcelSync(file);
-    });
+    const isJSON = /\.json$/i.test(file.name);
+    if(isJSON){
+      customConfirm('JSON Backup ફાઈલ પ્રમાણે બધા items overwrite થઈ જશે.\nApp માં રહેલું બધું JSON File મુજબ થઈ જશે.').then(ok => {
+        if(ok) importJSONBackup(file);
+      });
+    } else {
+      customConfirm('Excel ફાઈલ પ્રમાણે Name, Price, Qty બધું overwrite થઈ જશે.\nApp માં રહેલું બધું Excel File મુજબ થઈ જશે.').then(ok => {
+        if(ok) importExcelSync(file);
+      });
+    }
   }
   e.target.value = '';
 });
